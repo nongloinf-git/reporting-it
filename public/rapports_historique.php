@@ -1,0 +1,134 @@
+<?php
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
+requireRole(['manager', 'admin']);
+
+$u = currentUser();
+$pdo = getPDO();
+
+$nombreSemaines = isset($_GET['nb_semaines']) ? max(1, min(52, (int) $_GET['nb_semaines'])) : 8;
+$collaborateurId = isset($_GET['collaborateur_id']) && $_GET['collaborateur_id'] !== '' ? (int) $_GET['collaborateur_id'] : null;
+
+// Liste des collaborateurs pour le filtre
+if ($u['role'] === 'manager') {
+    $stmt = $pdo->prepare("SELECT id, nom FROM utilisateurs WHERE manager_id = ? ORDER BY nom");
+    $stmt->execute([$u['id']]);
+} else {
+    $stmt = $pdo->query("SELECT id, nom FROM utilisateurs WHERE role = 'collaborateur' ORDER BY nom");
+}
+$collaborateurs = $stmt->fetchAll();
+
+// Tous les rapports de l'équipe (le volume reste faible pour un outil interne : filtrage en PHP)
+if ($u['role'] === 'manager') {
+    $stmt = $pdo->prepare(
+        'SELECT r.*, ut.nom FROM rapports r
+         JOIN utilisateurs ut ON ut.id = r.utilisateur_id
+         WHERE ut.manager_id = ?
+         ORDER BY r.annee DESC, r.semaine_numero DESC, ut.nom'
+    );
+    $stmt->execute([$u['id']]);
+} else {
+    $stmt = $pdo->query(
+        "SELECT r.*, ut.nom FROM rapports r
+         JOIN utilisateurs ut ON ut.id = r.utilisateur_id
+         ORDER BY r.annee DESC, r.semaine_numero DESC, ut.nom"
+    );
+}
+$tousLesRapports = $stmt->fetchAll();
+
+// Filtrage sur la plage de semaines demandée (+ collaborateur si sélectionné)
+$clesSemaines = array_flip(semainesPrecedentes($nombreSemaines));
+$rapports = array_filter($tousLesRapports, function ($r) use ($clesSemaines, $collaborateurId) {
+    $cle = $r['annee'] . '-' . $r['semaine_numero'];
+    if (!isset($clesSemaines[$cle])) {
+        return false;
+    }
+    if ($collaborateurId !== null && (int) $r['utilisateur_id'] !== $collaborateurId) {
+        return false;
+    }
+    return true;
+});
+
+// Regroupement par collaborateur pour l'affichage
+$parCollaborateur = [];
+foreach ($rapports as $r) {
+    $parCollaborateur[$r['nom']][] = $r;
+}
+ksort($parCollaborateur);
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Historique des rapports - Reporting IT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<?php require __DIR__ . '/../includes/navbar.php'; ?>
+<div class="container">
+    <h3>Historique des rapports</h3>
+    <p class="text-muted">Affiche les rapports sur plusieurs semaines passées (au lieu d'une seule semaine à la fois).</p>
+
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-auto">
+            <label class="form-label">Nombre de semaines à afficher</label>
+            <input type="number" name="nb_semaines" min="1" max="52" value="<?= (int)$nombreSemaines ?>" class="form-control">
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Collaborateur</label>
+            <select name="collaborateur_id" class="form-select">
+                <option value="">Tous</option>
+                <?php foreach ($collaborateurs as $c): ?>
+                    <option value="<?= (int)$c['id'] ?>" <?= $collaborateurId === (int)$c['id'] ? 'selected' : '' ?>><?= e($c['nom']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-auto align-self-end">
+            <button class="btn btn-secondary">Filtrer</button>
+        </div>
+        <div class="col-auto align-self-end">
+            <a href="rapports_manager.php" class="btn btn-outline-secondary">Retour à la vue semaine</a>
+        </div>
+    </form>
+
+    <?php if (!$rapports): ?>
+        <p class="text-muted">Aucun rapport trouvé sur cette période.</p>
+    <?php endif; ?>
+
+    <?php foreach ($parCollaborateur as $nom => $rapportsCollaborateur): ?>
+        <h5 class="mt-4"><?= e($nom) ?></h5>
+        <table class="table table-bordered bg-white">
+            <thead class="table-light">
+                <tr>
+                    <th>Semaine</th>
+                    <th>Statut</th>
+                    <th>Temps passé</th>
+                    <th>Type</th>
+                    <th>Aperçu</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($rapportsCollaborateur as $r): ?>
+                <tr>
+                    <td>S<?= (int)$r['semaine_numero'] ?> - <?= (int)$r['annee'] ?></td>
+                    <td><span class="badge bg-<?= classeBadgeStatut($r['statut']) ?>"><?= libelleStatut($r['statut']) ?></span></td>
+                    <td><?= $r['temps_passe'] !== null ? e((string)$r['temps_passe']) . ' h' : '-' ?></td>
+                    <td><?= !empty($r['fichier_word']) ? 'Word' : 'Texte' ?></td>
+                    <td>
+                        <?php if (!empty($r['contenu'])): ?>
+                            <?= e(mb_strimwidth($r['contenu'], 0, 60, '...')) ?>
+                        <?php elseif (!empty($r['fichier_word'])): ?>
+                            <a href="uploads/rapports_word/<?= e($r['fichier_word']) ?>" target="_blank">Voir le fichier</a>
+                        <?php else: ?>
+                            -
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endforeach; ?>
+</div>
+</body>
+</html>

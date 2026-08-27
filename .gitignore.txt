@@ -1,0 +1,13 @@
+# Dépendances Composer (si utilisées)
+/vendor/
+
+# Fichiers de configuration sensibles ou logs
+config.local.php
+.env
+*.log
+
+# Fichiers système Windows / IDE
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/
