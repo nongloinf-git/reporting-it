@@ -76,7 +76,7 @@ Sur la page **Rapports de l'équipe** (manager/admin), deux boutons permettent d
 
 - Sur la page **Mon rapport de la semaine**, le collaborateur peut soit taper son texte, soit joindre un fichier `.docx` (10 Mo max), soit les deux.
 - Les fichiers sont stockés dans `public/uploads/rapports_word/`.
-- Le manager/admin voit, sur la page **Rapports de l'équipe**, un **aperçu texte automatique** du contenu du fichier Word (extrait directement du `.docx`, sans dépendance externe), ainsi qu'un lien **Télécharger / Ouvrir** pour consulter le fichier original avec sa mise en forme.
+- Le manager/admin voit, sur la page **Rapports de l'équipe**, un **aperçu visuel avec mise en forme conservée** (gras, titres, listes...), généré côté navigateur via [mammoth.js](https://github.com/mwilliamson/mammoth.js) (chargé depuis un CDN, aucune installation requise). Un aperçu texte brut (extrait côté PHP, sans dépendance) s'affiche automatiquement en repli si l'aperçu visuel échoue (pas d'accès internet pour charger la librairie, fichier corrompu...). Un lien **Télécharger / Ouvrir** reste disponible pour consulter le fichier original.
 - Le manager/admin peut ensuite :
   - **Valider le rapport** (le rapport devient définitif, non modifiable) ;
   - **Renvoyer pour révision (refuser)** : le rapport redevient un brouillon modifiable par le collaborateur — pensez à laisser un commentaire expliquant pourquoi.
@@ -110,12 +110,27 @@ Une page **Rappels email** (visible par manager/admin) permet d'envoyer en un cl
 La page **Historique** affiche les rapports de l'équipe sur plusieurs semaines passées (au lieu d'une seule semaine comme sur la page "Rapports de l'équipe") :
 - Filtre par nombre de semaines à afficher (par défaut : 8 dernières semaines).
 - Filtre optionnel par collaborateur.
-- Résultats regroupés par collaborateur, avec statut, temps passé et aperçu du contenu (texte ou fichier Word).
+- **Graphique comparatif** (Chart.js) : une courbe de temps déclaré par semaine et par collaborateur, superposées pour comparer la charge de travail dans le temps.
+- Résultats regroupés par collaborateur, avec statut, temps passé et aperçu du contenu (texte, ou aperçu Word visuel via mammoth.js).
+- **Exporter CSV / Exporter PDF** directement depuis cette page, en respectant les mêmes filtres (nombre de semaines, collaborateur) que ceux affichés à l'écran.
+
+## Graphiques de charge de travail (Chart.js)
+
+- **Tableau de bord du collaborateur** : courbe de son temps déclaré sur ses 10 derniers rapports.
+- **Tableau de bord du manager/admin** : histogramme comparant le temps déclaré par chaque membre de l'équipe pour la semaine en cours.
+- **Page Historique** : courbes multi-collaborateurs sur la période sélectionnée (voir ci-dessus).
+
+Ces graphiques utilisent [Chart.js](https://www.chartjs.org/) chargé depuis un CDN (aucune installation locale requise).
+
+## Vue calendrier des réunions
+
+En plus de la vue liste, la page **Réunions** propose une **vue calendrier** (bouton "📅 Vue calendrier") :
+- Grille mensuelle démarrant le lundi, avec navigation "Mois précédent / Mois suivant" et retour rapide au mois en cours.
+- Chaque réunion apparaît sous forme de badge coloré sur son jour, avec l'heure et le titre ; un clic ouvre le détail de la réunion.
+- Respecte les mêmes règles de visibilité que la vue liste (un simple participant ne voit que les réunions auxquelles il est convié).
 
 ## Prochaines pistes d'évolution possibles
 
-- Graphiques de charge de travail (Chart.js)
-- Export CSV/PDF directement depuis la page Historique
-- Aperçu visuel du fichier Word (mise en forme) plutôt qu'un aperçu texte brut
 - Notification email automatique à l'assignation d'une tâche de réunion
-- Vue calendrier pour les réunions
+- Rappel email automatique avant l'échéance d'une tâche de réunion
+- Export CSV/PDF des tâches de réunion

@@ -71,6 +71,8 @@ if ($rapports) {
     <meta charset="UTF-8">
     <title>Rapports de l'équipe - Reporting IT</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js"></script>
+    <style>.docx-preview img { max-width: 100%; }</style>
 </head>
 <body>
 <?php require __DIR__ . '/../includes/navbar.php'; ?>
@@ -104,6 +106,29 @@ if ($rapports) {
         <p class="text-muted">Aucun rapport soumis pour cette semaine.</p>
     <?php endif; ?>
 
+    <script>
+        async function chargerApercuWordVisuel(cibleId, url, cibleTexteId) {
+            const cible = document.getElementById(cibleId);
+            const cibleTexte = document.getElementById(cibleTexteId);
+            try {
+                const reponse = await fetch(url);
+                const buffer = await reponse.arrayBuffer();
+                const resultat = await mammoth.convertToHtml({ arrayBuffer: buffer });
+                cible.innerHTML = resultat.value || '<p class="text-muted small">(document vide)</p>';
+                cible.classList.remove('d-none');
+                if (cibleTexte) cibleTexte.classList.add('d-none');
+            } catch (e) {
+                // En cas d'échec (JS désactivé, réseau...), on garde l'aperçu texte déjà affiché en repli.
+                console.warn('Aperçu visuel Word indisponible, repli sur le texte extrait.', e);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-docx-url]').forEach(function (el) {
+                chargerApercuWordVisuel(el.dataset.docxCible, el.dataset.docxUrl, el.dataset.docxTexteCible);
+            });
+        });
+    </script>
+
     <?php foreach ($rapports as $r): ?>
         <div class="card mb-3" id="rapport-<?= (int)$r['id'] ?>">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -117,18 +142,26 @@ if ($rapports) {
 
                 <?php if (!empty($r['fichier_word'])):
                     $cheminFichier = __DIR__ . '/uploads/rapports_word/' . $r['fichier_word'];
-                    $apercu = file_exists($cheminFichier) ? extraireApercuDocx($cheminFichier) : null;
+                    $apercuTexte = file_exists($cheminFichier) ? extraireApercuDocx($cheminFichier) : null;
+                    $idVisuel = 'docx-visuel-' . (int) $r['id'];
+                    $idTexte = 'docx-texte-' . (int) $r['id'];
                 ?>
                     <div class="border rounded p-3 bg-light mb-2">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <strong>📄 Rapport Word joint</strong>
                             <a href="uploads/rapports_word/<?= e($r['fichier_word']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">Télécharger / Ouvrir</a>
                         </div>
-                        <?php if ($apercu): ?>
-                            <p class="text-muted small mb-1">Aperçu du contenu (extraction automatique) :</p>
-                            <div style="white-space: pre-wrap; max-height: 300px; overflow-y: auto;" class="small bg-white border rounded p-2"><?= e($apercu) ?></div>
+
+                        <p class="text-muted small mb-1">Aperçu (mise en forme conservée) :</p>
+                        <div id="<?= $idVisuel ?>" class="docx-preview d-none small bg-white border rounded p-2" style="max-height:400px; overflow-y:auto;"
+                             data-docx-url="uploads/rapports_word/<?= e($r['fichier_word']) ?>" data-docx-cible="<?= $idVisuel ?>" data-docx-texte-cible="<?= $idTexte ?>"></div>
+
+                        <?php if ($apercuTexte): ?>
+                            <div id="<?= $idTexte ?>" style="white-space: pre-wrap; max-height: 300px; overflow-y: auto;" class="small bg-white border rounded p-2">
+                                <p class="text-muted mb-1"><em>Chargement de l'aperçu visuel... (repli texte ci-dessous si indisponible)</em></p><?= e($apercuTexte) ?>
+                            </div>
                         <?php else: ?>
-                            <p class="text-muted small mb-0">Aperçu indisponible — utilisez "Télécharger / Ouvrir" pour consulter le fichier.</p>
+                            <p class="text-muted small mb-0">Chargement de l'aperçu visuel... si rien ne s'affiche, utilisez "Télécharger / Ouvrir".</p>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>

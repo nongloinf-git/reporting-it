@@ -2,49 +2,16 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/reunions_helpers.php';
 requireLogin();
 
 $u = currentUser();
 $pdo = getPDO();
 $gestionnaire = peutGererReunions($u);
 
-if ($gestionnaire) {
-    // Un gestionnaire voit toutes les réunions qu'il a organisées ou auxquelles il participe.
-    // L'admin voit systématiquement toutes les réunions de l'application.
-    if ($u['role'] === 'admin') {
-        $stmt = $pdo->query(
-            'SELECT r.*, org.nom AS organisateur_nom,
-                    (SELECT COUNT(*) FROM taches_reunion t WHERE t.reunion_id = r.id) AS nb_taches
-             FROM reunions r
-             JOIN utilisateurs org ON org.id = r.organisateur_id
-             ORDER BY r.date_reunion DESC'
-        );
-    } else {
-        $stmt = $pdo->prepare(
-            'SELECT DISTINCT r.*, org.nom AS organisateur_nom,
-                    (SELECT COUNT(*) FROM taches_reunion t WHERE t.reunion_id = r.id) AS nb_taches
-             FROM reunions r
-             JOIN utilisateurs org ON org.id = r.organisateur_id
-             LEFT JOIN reunion_participants rp ON rp.reunion_id = r.id
-             WHERE r.organisateur_id = ? OR rp.utilisateur_id = ?
-             ORDER BY r.date_reunion DESC'
-        );
-        $stmt->execute([$u['id'], $u['id']]);
-    }
-} else {
-    // Un simple participant ne voit que les réunions auxquelles il est convié.
-    $stmt = $pdo->prepare(
-        'SELECT r.*, org.nom AS organisateur_nom,
-                (SELECT COUNT(*) FROM taches_reunion t WHERE t.reunion_id = r.id) AS nb_taches
-         FROM reunions r
-         JOIN utilisateurs org ON org.id = r.organisateur_id
-         JOIN reunion_participants rp ON rp.reunion_id = r.id
-         WHERE rp.utilisateur_id = ?
-         ORDER BY r.date_reunion DESC'
-    );
-    $stmt->execute([$u['id']]);
-}
-$reunions = $stmt->fetchAll();
+$reunions = reunionsVisibles($pdo, $u);
+// Tri décroissant pour la vue liste (les plus récentes en premier)
+$reunions = array_reverse($reunions);
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -58,9 +25,12 @@ $reunions = $stmt->fetchAll();
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="mb-0">Réunions</h3>
-        <?php if ($gestionnaire): ?>
-            <a href="reunion_form.php" class="btn btn-primary">+ Nouvelle réunion</a>
-        <?php endif; ?>
+        <div class="d-flex gap-2">
+            <a href="reunions_calendrier.php" class="btn btn-outline-primary">📅 Vue calendrier</a>
+            <?php if ($gestionnaire): ?>
+                <a href="reunion_form.php" class="btn btn-primary">+ Nouvelle réunion</a>
+            <?php endif; ?>
+        </div>
     </div>
 
     <?php if (!$reunions): ?>

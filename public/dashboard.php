@@ -42,6 +42,16 @@ $stmtTaches = $pdo->prepare(
 );
 $stmtTaches->execute([$u['id']]);
 $mesTaches = $stmtTaches->fetchAll();
+
+// --- Données pour le graphique de charge de travail (Chart.js) ---
+if ($u['role'] === 'collaborateur') {
+    $rapportsChrono = array_reverse($rapports); // du plus ancien au plus récent
+    $labelsGraphique = array_map(fn($r) => 'S' . (int)$r['semaine_numero'] . '-' . (int)$r['annee'], $rapportsChrono);
+    $donneesGraphique = array_map(fn($r) => $r['temps_passe'] !== null ? (float) $r['temps_passe'] : null, $rapportsChrono);
+} else {
+    $labelsGraphique = array_map(fn($m) => $m['nom'], $membres);
+    $donneesGraphique = array_map(fn($m) => $m['rapport']['temps_passe'] ?? 0, $membres);
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -49,6 +59,7 @@ $mesTaches = $stmtTaches->fetchAll();
     <meta charset="UTF-8">
     <title>Tableau de bord - Reporting IT</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <?php require __DIR__ . '/../includes/navbar.php'; ?>
@@ -104,6 +115,35 @@ $mesTaches = $stmtTaches->fetchAll();
             </tbody>
         </table>
     <?php endif; ?>
+
+    <h5 class="mt-5"><?= $u['role'] === 'collaborateur' ? 'Mon temps déclaré par semaine' : 'Charge de travail de l\'équipe (semaine en cours)' ?></h5>
+    <div class="card mb-4">
+        <div class="card-body">
+            <canvas id="graphiqueCharge" height="90"></canvas>
+        </div>
+    </div>
+    <script>
+        new Chart(document.getElementById('graphiqueCharge'), {
+            type: '<?= $u['role'] === 'collaborateur' ? 'line' : 'bar' ?>',
+            data: {
+                labels: <?= json_encode($labelsGraphique, JSON_UNESCAPED_UNICODE) ?>,
+                datasets: [{
+                    label: 'Temps passé (heures)',
+                    data: <?= json_encode($donneesGraphique) ?>,
+                    backgroundColor: 'rgba(13, 110, 253, 0.5)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 2,
+                    tension: 0.2,
+                    spanGaps: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Heures' } } }
+            }
+        });
+    </script>
 
     <h5 class="mt-5">Mes tâches de réunions</h5>
     <?php if (!$mesTaches): ?>

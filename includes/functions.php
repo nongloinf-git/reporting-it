@@ -127,6 +127,127 @@ function extraireApercuDocx(string $cheminFichier, int $longueurMax = 3000): ?st
 }
 
 /**
+ * Convertit un fichier .docx en HTML avec mise en forme de base (gras, italique,
+ * souligné, sauts de paragraphe, puces), en lisant directement le XML interne du
+ * fichier Word (aucune dépendance externe : ZipArchive + DOMDocument, tous deux
+ * inclus dans PHP par défaut). Tout le texte est échappé (htmlspecialchars) avant
+ * d'être ré-inséré dans les balises HTML générées : le résultat est donc sûr à
+ * afficher tel quel. Retourne null si la conversion échoue.
+ */
+function convertirDocxEnHtml(string $cheminFichier, int $nbParagraphesMax = 200): ?string
+{
+    if (!class_exists('ZipArchive') || !class_exists('DOMDocument')) {
+        return null;
+    }
+
+    $zip = new ZipArchive();
+    if ($zip->open($cheminFichier) !== true) {
+        return null;
+    }
+    $xml = $zip->getFromName('word/document.xml');
+    $zip->close();
+
+    if ($xml === false) {
+        return null;
+    }
+
+    $dom = new DOMDocument();
+    libxml_use_internal_errors(true);
+    $charge = $dom->loadXML($xml);
+    libxml_clear_errors();
+    if (!$charge) {
+        return null;
+    }
+
+    $xpath = new DOMXPath($dom);
+    $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+    $paragraphes = $xpath->query('//w:body/w:p');
+    if ($paragraphes === false || $paragraphes->length === 0) {
+        return null;
+    }
+
+    $html = '';
+    $compteur = 0;
+
+    foreach ($paragraphes as $p) {
+        if (++$compteur > $nbParagraphesMax) {
+            $html .= '<p class="text-muted small">(aperçu tronqué — ouvrez le fichier pour voir la suite)</p>';
+            break;
+        }
+
+        // Détecte une liste à puces/numérotée (présence de w:numPr dans les propriétés du paragraphe)
+        $estListe = $xpath->query('.//w:pPr/w:numPr', $p)->length > 0;
+
+        $contenuParagraphe = '';
+        $runs = $xpath->query('.//w:r', $p);
+        foreach ($runs as $run) {
+            $texteNoeuds = $xpath->query('.//w:t', $run);
+            $texte = '';
+            foreach ($texteNoeuds as $t) {
+                $texte .= $t->textContent;
+            }
+            if ($texte === '') {
+                // Gère les tabulations et sauts de ligne internes au run
+                if ($xpath->query('.//w:tab', $run)->length > 0) {
+                    $texte = "\t";
+                }
+                if ($xpath->query('.//w:br', $run)->length > 0) {
+                    $contenuParagraphe .= '<br>';
+                }
+                if ($texte === '') {
+                    continue;
+                }
+            }
+
+            $texteEchappe = nl2br(e($texte));
+
+            $gras = $xpath->query('.//w:rPr/w:b[not(@w:val="false") and not(@w:val="0")]', $run)->length > 0;
+            $italique = $xpath->query('.//w:rPr/w:i[not(@w:val="false") and not(@w:val="0")]', $run)->length > 0;
+            $souligne = $xpath->query('.//w:rPr/w:u[not(@w:val="none")]', $run)->length > 0;
+
+            if ($gras) {
+                $texteEchappe = '<strong>' . $texteEchappe . '</strong>';
+            }
+            if ($italique) {
+                $texteEchappe = '<em>' . $texteEchappe . '</em>';
+            }
+            if ($souligne) {
+                $texteEchappe = '<u>' . $texteEchappe . '</u>';
+            }
+
+            $contenuParagraphe .= $texteEchappe;
+        }
+
+        if (trim($contenuParagraphe) === '') {
+            $html .= '<p>&nbsp;</p>';
+            continue;
+        }
+
+        if ($estListe) {
+            $html .= '<p class="mb-1">• ' . $contenuParagraphe . '</p>';
+        } else {
+            $html .= '<p>' . $contenuParagraphe . '</p>';
+        }
+    }
+
+    return $html !== '' ? $html : null;
+}
+
+/**
+ * Encode une valeur PHP en JSON prêt à être inséré dans un bloc <script>,
+ * en échappant les caractères qui pourraient casser hors de la balise
+ * (ex: un nom d'utilisateur contenant "</script>").
+ */
+function jsonPourScript($valeur): string
+{
+    return json_encode(
+        $valeur,
+        JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE
+    );
+}
+
+/**
  * Calcule la liste des semaines ISO (annee, semaine) sur les $nombreSemaines
  * dernières semaines, en partant de la semaine courante (incluse).
  * Retourne un tableau de clés "annee-semaine" (ex: "2026-35").

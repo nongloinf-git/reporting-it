@@ -1,12 +1,17 @@
 -- Migration à exécuter UNIQUEMENT si la base reporting_it existe déjà
 -- avec les tables de base + fichier_word (migration_2).
 -- (installation neuve : schema.sql suffit, ce fichier n'est pas nécessaire)
+-- Ce script est idempotent : le relancer sur une base déjà à jour ne provoque pas d'erreur.
 USE reporting_it;
 
 ALTER TABLE utilisateurs
-    ADD COLUMN photo_profil VARCHAR(255) DEFAULT NULL AFTER manager_id,
-    ADD COLUMN actif TINYINT(1) NOT NULL DEFAULT 1 AFTER photo_profil,
-    ADD COLUMN peut_gerer_reunions TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'permission d''organiser des réunions et d''y assigner des tâches, indépendamment du rôle' AFTER actif;
+    ADD COLUMN IF NOT EXISTS photo_profil VARCHAR(255) DEFAULT NULL AFTER manager_id;
+
+ALTER TABLE utilisateurs
+    ADD COLUMN IF NOT EXISTS actif TINYINT(1) NOT NULL DEFAULT 1 AFTER photo_profil;
+
+ALTER TABLE utilisateurs
+    ADD COLUMN IF NOT EXISTS peut_gerer_reunions TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'permission d''organiser des réunions et d''y assigner des tâches, indépendamment du rôle' AFTER actif;
 
 -- Donne la permission de gérer les réunions à tous les comptes admin existants
 UPDATE utilisateurs SET peut_gerer_reunions = 1 WHERE role = 'admin';
