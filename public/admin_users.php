@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireRole(['admin']);
 
 $admin = currentUser();
@@ -29,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'INSERT INTO utilisateurs (nom, email, mot_de_passe, role, equipe, manager_id, peut_gerer_reunions) VALUES (?, ?, ?, ?, ?, ?, ?)'
                 );
                 $stmt->execute([$nom, $email, password_hash($motDePasse, PASSWORD_DEFAULT), $role, $equipe ?: null, $managerId, $peutGererReunions]);
+                journaliser((int) $admin['id'], 'creation_utilisateur', "Création de \"$nom\" ($email, rôle $role)");
                 $message = 'Utilisateur créé avec succès.';
             } catch (PDOException $e) {
                 $message = str_contains($e->getMessage(), 'Duplicate entry')
@@ -44,8 +46,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id === (int) $admin['id']) {
             $message = 'Vous ne pouvez pas supprimer votre propre compte.';
         } else {
+            $stmtNom = $pdo->prepare('SELECT nom, email FROM utilisateurs WHERE id = ?');
+            $stmtNom->execute([$id]);
+            $cible = $stmtNom->fetch();
+
             $stmt = $pdo->prepare('DELETE FROM utilisateurs WHERE id = ?');
             $stmt->execute([$id]);
+            if ($cible) {
+                journaliser((int) $admin['id'], 'suppression_utilisateur', "Suppression de \"{$cible['nom']}\" ({$cible['email']})");
+            }
             $message = 'Utilisateur supprimé.';
         }
     }
@@ -58,6 +67,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $stmt = $pdo->prepare('UPDATE utilisateurs SET actif = NOT actif WHERE id = ?');
             $stmt->execute([$id]);
+
+            $stmtEtat = $pdo->prepare('SELECT nom, actif FROM utilisateurs WHERE id = ?');
+            $stmtEtat->execute([$id]);
+            $cible = $stmtEtat->fetch();
+            if ($cible) {
+                $actionJournal = (int) $cible['actif'] === 1 ? 'activation_compte' : 'desactivation_compte';
+                journaliser((int) $admin['id'], $actionJournal, $cible['nom']);
+            }
             $message = 'Statut du compte mis à jour.';
         }
     }
@@ -69,8 +86,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id === (int) $admin['id'] && $role !== 'admin') {
             $message = 'Vous ne pouvez pas retirer votre propre rôle admin.';
         } else {
+            $stmtAvant = $pdo->prepare('SELECT nom, role FROM utilisateurs WHERE id = ?');
+            $stmtAvant->execute([$id]);
+            $avant = $stmtAvant->fetch();
+
             $stmt = $pdo->prepare('UPDATE utilisateurs SET role = ? WHERE id = ?');
             $stmt->execute([$role, $id]);
+
+            if ($avant && $avant['role'] !== $role) {
+                journaliser((int) $admin['id'], 'modification_role', "{$avant['nom']} : {$avant['role']} → $role");
+            }
             $message = 'Rôle mis à jour.';
         }
     }
@@ -80,6 +105,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int) $_POST['id'];
         $stmt = $pdo->prepare('UPDATE utilisateurs SET peut_gerer_reunions = NOT peut_gerer_reunions WHERE id = ?');
         $stmt->execute([$id]);
+
+        $stmtNom = $pdo->prepare('SELECT nom, peut_gerer_reunions FROM utilisateurs WHERE id = ?');
+        $stmtNom->execute([$id]);
+        $cible = $stmtNom->fetch();
+        if ($cible) {
+            $etat = (int) $cible['peut_gerer_reunions'] === 1 ? 'accordée' : 'retirée';
+            journaliser((int) $admin['id'], 'modification_permission_reunions', "Permission $etat à {$cible['nom']}");
+        }
         $message = 'Permission mise à jour.';
     }
 
@@ -92,6 +125,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $stmt = $pdo->prepare('UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?');
             $stmt->execute([password_hash($nouveauMdp, PASSWORD_DEFAULT), $id]);
+
+            $stmtNom = $pdo->prepare('SELECT nom FROM utilisateurs WHERE id = ?');
+            $stmtNom->execute([$id]);
+            $nomCible = $stmtNom->fetchColumn();
+            journaliser((int) $admin['id'], 'reinitialisation_mot_de_passe', $nomCible ?: null);
             $message = 'Mot de passe réinitialisé.';
         }
     }

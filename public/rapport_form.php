@@ -63,11 +63,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($contenu === '' && !$nomFichierWord) {
             $erreur = "Veuillez saisir le contenu de votre rapport ou joindre un fichier Word (.docx).";
         } else {
-            $stmt = $pdo->prepare(
-                'INSERT INTO rapports (utilisateur_id, annee, semaine_numero, contenu, fichier_word, temps_passe, statut)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE contenu = VALUES(contenu), fichier_word = VALUES(fichier_word), temps_passe = VALUES(temps_passe), statut = VALUES(statut)'
-            );
+            if ($statut === 'soumis') {
+                // Chaque (re)soumission met à jour la date d'envoi.
+                $stmt = $pdo->prepare(
+                    'INSERT INTO rapports (utilisateur_id, annee, semaine_numero, contenu, fichier_word, temps_passe, statut, date_envoi)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                     ON DUPLICATE KEY UPDATE contenu = VALUES(contenu), fichier_word = VALUES(fichier_word), temps_passe = VALUES(temps_passe), statut = VALUES(statut), date_envoi = NOW()'
+                );
+            } else {
+                // Enregistrement en brouillon : la date d'envoi n'est pas touchée.
+                $stmt = $pdo->prepare(
+                    'INSERT INTO rapports (utilisateur_id, annee, semaine_numero, contenu, fichier_word, temps_passe, statut)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE contenu = VALUES(contenu), fichier_word = VALUES(fichier_word), temps_passe = VALUES(temps_passe), statut = VALUES(statut)'
+                );
+            }
             $stmt->execute([$u['id'], $annee, $semaine, $contenu ?: null, $nomFichierWord, $tempsPasse, $statut]);
             $message = $statut === 'soumis' ? 'Rapport soumis avec succès.' : 'Brouillon enregistré.';
         }
@@ -101,6 +111,22 @@ $verrouille = ($rapport['statut'] ?? '') === 'valide';
 
     <?php if ($verrouille): ?>
         <div class="alert alert-success">Ce rapport a déjà été validé par votre manager et n'est plus modifiable.</div>
+    <?php endif; ?>
+
+    <?php if ($rapport): ?>
+        <p class="text-muted small">
+            <?php if ($rapport['date_envoi']): ?>
+                Envoyé le <?= e(formatDateHeure($rapport['date_envoi'])) ?>
+            <?php else: ?>
+                Pas encore envoyé (brouillon)
+            <?php endif; ?>
+            —
+            <?php if ($rapport['date_validation']): ?>
+                Validé le <?= e(formatDateHeure($rapport['date_validation'])) ?>
+            <?php else: ?>
+                En attente de validation
+            <?php endif; ?>
+        </p>
     <?php endif; ?>
 
     <form method="get" class="row g-2 mb-4">

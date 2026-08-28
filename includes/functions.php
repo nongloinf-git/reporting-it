@@ -1,5 +1,21 @@
 <?php
 
+/**
+ * Formate une date/heure MySQL (DATETIME/TIMESTAMP) en "JJ/MM/AAAA à HH:mm".
+ * Retourne null si la valeur est vide (permet d'afficher "En attente" ailleurs).
+ */
+function formatDateHeure(?string $valeurMysql): ?string
+{
+    if (!$valeurMysql) {
+        return null;
+    }
+    try {
+        return (new DateTime($valeurMysql))->format('d/m/Y \à H:i');
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
 function semaineCourante(): array
 {
     return [

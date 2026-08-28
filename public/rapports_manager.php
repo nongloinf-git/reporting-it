@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireRole(['manager', 'admin']);
 
 $u = currentUser();
@@ -13,13 +14,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'valider') {
-        $stmt = $pdo->prepare("UPDATE rapports SET statut = 'valide' WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE rapports SET statut = 'valide', date_validation = NOW() WHERE id = ?");
         $stmt->execute([$rapportId]);
+
+        $stmtInfo = $pdo->prepare('SELECT ut.nom, r.annee, r.semaine_numero FROM rapports r JOIN utilisateurs ut ON ut.id = r.utilisateur_id WHERE r.id = ?');
+        $stmtInfo->execute([$rapportId]);
+        $info = $stmtInfo->fetch();
+        if ($info) {
+            journaliser((int) $u['id'], 'validation_rapport', "{$info['nom']} — semaine {$info['semaine_numero']}/{$info['annee']}");
+        }
     }
     if ($action === 'renvoyer') {
         // Renvoie le rapport au collaborateur pour révision (redevient modifiable)
         $stmt = $pdo->prepare("UPDATE rapports SET statut = 'brouillon' WHERE id = ?");
         $stmt->execute([$rapportId]);
+
+        $stmtInfo = $pdo->prepare('SELECT ut.nom, r.annee, r.semaine_numero FROM rapports r JOIN utilisateurs ut ON ut.id = r.utilisateur_id WHERE r.id = ?');
+        $stmtInfo->execute([$rapportId]);
+        $info = $stmtInfo->fetch();
+        if ($info) {
+            journaliser((int) $u['id'], 'renvoi_rapport', "{$info['nom']} — semaine {$info['semaine_numero']}/{$info['annee']}");
+        }
     }
     if ($commentaire !== '') {
         $stmt = $pdo->prepare('INSERT INTO commentaires_validation (rapport_id, manager_id, commentaire) VALUES (?, ?, ?)');
@@ -166,7 +181,20 @@ if ($rapports) {
                     </div>
                 <?php endif; ?>
 
-                <p class="text-muted small">Temps passé : <?= $r['temps_passe'] !== null ? e((string)$r['temps_passe']) . ' h' : 'non renseigné' ?></p>
+                <p class="text-muted small mb-1">Temps passé : <?= $r['temps_passe'] !== null ? e((string)$r['temps_passe']) . ' h' : 'non renseigné' ?></p>
+                <p class="text-muted small">
+                    <?php if ($r['date_envoi']): ?>
+                        Envoyé le <?= e(formatDateHeure($r['date_envoi'])) ?>
+                    <?php else: ?>
+                        Pas encore envoyé
+                    <?php endif; ?>
+                    —
+                    <?php if ($r['date_validation']): ?>
+                        Validé le <?= e(formatDateHeure($r['date_validation'])) ?>
+                    <?php else: ?>
+                        En attente de validation
+                    <?php endif; ?>
+                </p>
 
                 <?php if (!empty($commentairesParRapport[$r['id']])): ?>
                     <hr>

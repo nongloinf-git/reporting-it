@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/journal.php';
 
 if (isLoggedIn() && currentUser() !== null) {
     header('Location: dashboard.php');
@@ -11,6 +12,8 @@ if (isLoggedIn() && currentUser() !== null) {
 $erreur = '';
 if (isset($_GET['desactive'])) {
     $erreur = 'Votre session a été fermée : votre compte est peut-être désactivé. Contactez votre administrateur si besoin.';
+} elseif (isset($_GET['inactivite'])) {
+    $erreur = 'Vous avez été déconnecté après 5 minutes d\'inactivité. Merci de vous reconnecter.';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -24,14 +27,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($utilisateur && password_verify($motDePasse, $utilisateur['mot_de_passe'])) {
         if ((int) $utilisateur['actif'] !== 1) {
             $erreur = 'Ce compte a été désactivé. Contactez votre administrateur.';
+            journaliser((int) $utilisateur['id'], 'connexion_echouee', 'Compte désactivé', $email);
         } else {
             session_regenerate_id(true);
             $_SESSION['user_id'] = $utilisateur['id'];
+            $_SESSION['derniere_activite'] = time();
+            journaliser((int) $utilisateur['id'], 'connexion_reussie');
             header('Location: dashboard.php');
             exit;
         }
     } else {
         $erreur = 'Email ou mot de passe incorrect.';
+        journaliser($utilisateur['id'] ?? null, 'connexion_echouee', 'Mot de passe incorrect ou email inconnu', $email);
     }
 }
 ?>

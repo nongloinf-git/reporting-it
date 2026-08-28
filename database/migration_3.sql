@@ -1,17 +1,45 @@
 -- Migration à exécuter UNIQUEMENT si la base reporting_it existe déjà
 -- avec les tables de base + fichier_word (migration_2).
 -- (installation neuve : schema.sql suffit, ce fichier n'est pas nécessaire)
--- Ce script est idempotent : le relancer sur une base déjà à jour ne provoque pas d'erreur.
+-- Ce script est idempotent et compatible avec toutes les versions de MySQL/MariaDB
+-- (voir migration_4.sql pour le détail de la technique utilisée).
 USE reporting_it;
 
-ALTER TABLE utilisateurs
-    ADD COLUMN IF NOT EXISTS photo_profil VARCHAR(255) DEFAULT NULL AFTER manager_id;
+SET @colonne_existe = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'reporting_it' AND TABLE_NAME = 'utilisateurs' AND COLUMN_NAME = 'photo_profil'
+);
+SET @sql = IF(@colonne_existe = 0,
+    'ALTER TABLE utilisateurs ADD COLUMN photo_profil VARCHAR(255) DEFAULT NULL AFTER manager_id',
+    'SELECT ''Colonne photo_profil déjà présente, rien à faire.'''
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-ALTER TABLE utilisateurs
-    ADD COLUMN IF NOT EXISTS actif TINYINT(1) NOT NULL DEFAULT 1 AFTER photo_profil;
+SET @colonne_existe = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'reporting_it' AND TABLE_NAME = 'utilisateurs' AND COLUMN_NAME = 'actif'
+);
+SET @sql = IF(@colonne_existe = 0,
+    'ALTER TABLE utilisateurs ADD COLUMN actif TINYINT(1) NOT NULL DEFAULT 1 AFTER photo_profil',
+    'SELECT ''Colonne actif déjà présente, rien à faire.'''
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
-ALTER TABLE utilisateurs
-    ADD COLUMN IF NOT EXISTS peut_gerer_reunions TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'permission d''organiser des réunions et d''y assigner des tâches, indépendamment du rôle' AFTER actif;
+SET @colonne_existe = (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'reporting_it' AND TABLE_NAME = 'utilisateurs' AND COLUMN_NAME = 'peut_gerer_reunions'
+);
+SET @sql = IF(@colonne_existe = 0,
+    'ALTER TABLE utilisateurs ADD COLUMN peut_gerer_reunions TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''permission d''''organiser des réunions et d''''y assigner des tâches, indépendamment du rôle'' AFTER actif',
+    'SELECT ''Colonne peut_gerer_reunions déjà présente, rien à faire.'''
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- Donne la permission de gérer les réunions à tous les comptes admin existants
 UPDATE utilisateurs SET peut_gerer_reunions = 1 WHERE role = 'admin';

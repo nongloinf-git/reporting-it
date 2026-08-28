@@ -3,6 +3,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+define('DUREE_INACTIVITE_MAX_SECONDES', 300); // 5 minutes
+
 function isLoggedIn(): bool
 {
     return isset($_SESSION['user_id']);
@@ -49,7 +51,23 @@ function currentUser(): ?array
 
 function requireLogin(): void
 {
-    if (!isLoggedIn() || currentUser() === null) {
+    if (!isLoggedIn()) {
+        header('Location: login.php');
+        exit;
+    }
+
+    // Déconnexion automatique après 5 minutes d'inactivité (aucune requête vers l'application).
+    if (isset($_SESSION['derniere_activite']) && (time() - $_SESSION['derniere_activite']) > DUREE_INACTIVITE_MAX_SECONDES) {
+        $idUtilisateurInactif = $_SESSION['user_id'];
+        session_destroy();
+        require_once __DIR__ . '/journal.php';
+        journaliser($idUtilisateurInactif, 'deconnexion_inactivite');
+        header('Location: login.php?inactivite=1');
+        exit;
+    }
+    $_SESSION['derniere_activite'] = time();
+
+    if (currentUser() === null) {
         header('Location: login.php?desactive=1');
         exit;
     }

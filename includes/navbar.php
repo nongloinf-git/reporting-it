@@ -25,6 +25,7 @@ $nomSociete = getParametre('nom_societe');
             <?php if ($u['role'] === 'admin'): ?>
                 <a class="nav-link" href="admin_users.php">Utilisateurs</a>
                 <a class="nav-link" href="admin_parametres.php">Paramètres</a>
+                <a class="nav-link" href="admin_journal.php">Journal d'activité</a>
             <?php endif; ?>
         </div>
         <a href="profil.php" class="d-flex align-items-center gap-2 text-white text-decoration-none me-3">
@@ -34,3 +35,26 @@ $nomSociete = getParametre('nom_societe');
         <a class="btn btn-outline-light btn-sm" href="logout.php">Déconnexion</a>
     </div>
 </nav>
+<script>
+    // Déconnexion automatique après 5 minutes sans aucune action de l'utilisateur
+    // (souris, clavier, clic, défilement), en plus du contrôle fait côté serveur
+    // à chaque requête (défense en profondeur : fonctionne même si l'onglet reste
+    // ouvert sans qu'aucune page ne soit rechargée).
+    (function () {
+        const DUREE_INACTIVITE_MS = 5 * 60 * 1000;
+        let minuteur = null;
+
+        function reinitialiserMinuteur() {
+            if (minuteur) clearTimeout(minuteur);
+            minuteur = setTimeout(function () {
+                window.location.href = 'logout.php';
+            }, DUREE_INACTIVITE_MS);
+        }
+
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function (evenement) {
+            document.addEventListener(evenement, reinitialiserMinuteur, { passive: true });
+        });
+
+        reinitialiserMinuteur();
+    })();
+</script>

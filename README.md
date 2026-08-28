@@ -9,6 +9,7 @@
    - Si vous aviez déjà installé une version précédente, importez plutôt les migrations dans l'ordre (uniquement celles que vous n'avez pas encore appliquées) :
      - `database/migration_2.sql` (fichiers Word joints aux rapports)
      - `database/migration_3.sql` (photo de profil, désactivation de compte, permission réunions, logo société, module réunions)
+     - `database/migration_4.sql` (dates d'envoi/validation des rapports, journal d'activité)
 4. Vérifiez les identifiants dans `config/database.php` si votre MySQL n'utilise pas `root` sans mot de passe.
 5. Ouvrez votre navigateur sur : **http://localhost/reporting-it/public/**
 
@@ -134,3 +135,35 @@ En plus de la vue liste, la page **Réunions** propose une **vue calendrier** (b
 - Notification email automatique à l'assignation d'une tâche de réunion
 - Rappel email automatique avant l'échéance d'une tâche de réunion
 - Export CSV/PDF des tâches de réunion
+- Export CSV/PDF du journal d'activité
+
+## Dates de suivi des rapports (envoi et validation)
+
+Chaque rapport enregistre désormais deux horodatages :
+- **`date_envoi`** : mise à jour automatiquement à chaque **(re)soumission** du rapport par le collaborateur (bouton "Soumettre au manager"). Un enregistrement en brouillon ne modifie pas cette date.
+- **`date_validation`** : renseignée automatiquement quand le manager/admin clique sur **"Valider le rapport"**.
+
+Ces dates sont affichées :
+- Sur **Mon rapport de la semaine** (vue du collaborateur) : "Envoyé le JJ/MM/AAAA à HH:mm" ou "Pas encore envoyé", et "Validé le JJ/MM/AAAA à HH:mm" ou "En attente de validation".
+- Sur **Rapports de l'équipe** (vue manager/admin) : mêmes informations pour chaque rapport affiché.
+
+## Journal d'activité (traçabilité et sécurité)
+
+Une table `journal_activite` enregistre automatiquement, avec date/heure et adresse IP :
+- Les connexions réussies et échouées (email/mot de passe incorrect, compte désactivé) ;
+- Les déconnexions (volontaires et automatiques par inactivité) ;
+- Les actions d'administration sensibles : création/suppression d'utilisateur, changement de rôle, activation/désactivation de compte, modification de la permission "Réunions", réinitialisation de mot de passe ;
+- Les validations et renvois de rapports par un manager/admin.
+
+La page **Journal d'activité** (admin uniquement, dans le menu) permet de consulter et filtrer ces entrées par utilisateur et par type d'action (200 entrées les plus récentes affichées).
+
+⚠️ Cette journalisation ne doit jamais empêcher l'application de fonctionner : si l'écriture du journal échoue pour une raison quelconque (ex: migration pas encore appliquée), l'erreur est silencieusement ignorée (juste tracée dans le fichier de log PHP/Apache) sans bloquer l'action de l'utilisateur.
+
+## Déconnexion automatique après 5 minutes d'inactivité
+
+Deux mécanismes complémentaires protègent une session laissée ouverte sans surveillance :
+
+1. **Côté serveur (déterminant)** : chaque requête vers une page protégée vérifie le délai écoulé depuis la dernière activité enregistrée en session. Au-delà de 300 secondes (5 minutes), la session PHP est détruite, l'événement est journalisé (`deconnexion_inactivite`), et l'utilisateur est redirigé vers la connexion avec un message explicite.
+2. **Côté navigateur (réactivité)** : un minuteur JavaScript (chargé sur chaque page protégée) surveille les mouvements de souris, clics, frappes clavier et défilement. Sans aucune de ces actions pendant 5 minutes, le navigateur redirige lui-même vers la déconnexion — utile si l'onglet reste ouvert sans qu'aucune page ne soit rechargée entre-temps.
+
+Le délai (300 secondes) est défini par la constante `DUREE_INACTIVITE_MAX_SECONDES` dans `includes/auth.php` (et le même délai en millisecondes dans `includes/navbar.php`) si vous souhaitez l'ajuster.
