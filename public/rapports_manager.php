@@ -79,18 +79,12 @@ if ($rapports) {
         $commentairesParRapport[$c['rapport_id']][] = $c;
     }
 }
+$titrePage = "Rapports de l'équipe";
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Rapports de l'équipe - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js"></script>
-    <style>.docx-preview img { max-width: 100%; }</style>
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js"></script>
+<style>.docx-preview img { max-width: 100%; }</style>
 <div class="container">
     <h3>Rapports de l'équipe</h3>
 

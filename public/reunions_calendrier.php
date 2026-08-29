@@ -52,24 +52,18 @@ $moisPrecedent = (clone $premierJourMois)->modify('-1 month');
 $moisSuivant = (clone $premierJourMois)->modify('+1 month');
 $nomsMois = [1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril', 5 => 'Mai', 6 => 'Juin', 7 => 'Juillet', 8 => 'Août', 9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre'];
 $aujourdhui = (new DateTime())->format('Y-m-d');
+$titrePage = 'Calendrier des réunions';
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Calendrier des réunions - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .jour-cellule { min-height: 110px; vertical-align: top; padding: 4px !important; }
-        .jour-hors-mois { background: #f8f9fa; color: #adb5bd; }
-        .jour-aujourdhui { background: #e7f1ff; }
-        .numero-jour { font-weight: 600; font-size: 0.85rem; }
-        .reunion-badge { display: block; font-size: 0.72rem; padding: 2px 4px; margin-top: 2px; border-radius: 3px; background: #0d6efd; color: #fff; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .reunion-badge:hover { background: #0a58ca; color: #fff; }
-    </style>
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
+<style>
+    .jour-cellule { min-height: 110px; vertical-align: top; padding: 4px !important; }
+    .jour-hors-mois { background: #f8f9fa; color: #adb5bd; }
+    .jour-aujourdhui { background: #e7f1ff; }
+    .numero-jour { font-weight: 600; font-size: 0.85rem; }
+    .reunion-badge { display: block; font-size: 0.72rem; padding: 2px 4px; margin-top: 2px; border-radius: 3px; background: #0d6efd; color: #fff; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .reunion-badge:hover { background: #0a58ca; color: #fff; }
+</style>
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="mb-0">Calendrier des réunions</h3>

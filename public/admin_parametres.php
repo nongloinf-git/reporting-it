@@ -50,16 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $logoActuel = getParametre('logo_societe');
 $nomSocieteActuel = getParametre('nom_societe');
+$titrePage = 'Paramètres';
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Paramètres - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
 <div class="container">
     <h3>Paramètres de l'application</h3>
 

@@ -31,7 +31,7 @@ function currentUser(): ?array
         require_once __DIR__ . '/../config/database.php';
 
         $stmt = getPDO()->prepare(
-            'SELECT id, nom, email, role, equipe, photo_profil, actif, peut_gerer_reunions
+            'SELECT id, nom, email, role, equipe, photo_profil, actif, peut_gerer_reunions, theme_couleur, mode_sombre
              FROM utilisateurs WHERE id = ?'
         );
         $stmt->execute([$_SESSION['user_id']]);
@@ -101,5 +101,26 @@ function requireReunionPermission(): void
     if (!peutGererReunions($u)) {
         http_response_code(403);
         die('Accès refusé : vous n\'avez pas la permission de gérer les réunions.');
+    }
+}
+
+/**
+ * Alias sémantique de peutGererReunions() : la même permission couvre la
+ * création/gestion des réunions ET la création de tâches directes (sans
+ * réunion) ou de sous-tâches. Un seul indicateur en base (peut_gerer_reunions)
+ * pour ne pas multiplier les cases à cocher côté admin.
+ */
+function peutGererTaches(array $u): bool
+{
+    return peutGererReunions($u);
+}
+
+function requireTachePermission(): void
+{
+    requireLogin();
+    $u = currentUser();
+    if (!peutGererTaches($u)) {
+        http_response_code(403);
+        die('Accès refusé : vous n\'avez pas la permission de créer ou gérer des tâches.');
     }
 }

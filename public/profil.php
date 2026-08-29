@@ -83,18 +83,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mot_d
         $messageMdp = 'Mot de passe modifié avec succès.';
     }
 }
+
+// --- Personnalisation de l'apparence (couleur, mode sombre) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apparence') {
+    $couleursValides = ['bleu', 'vert', 'violet', 'orange', 'rouge'];
+    $couleur = in_array($_POST['theme_couleur'] ?? '', $couleursValides, true) ? $_POST['theme_couleur'] : 'bleu';
+    $modeSombre = isset($_POST['mode_sombre']) ? 1 : 0;
+
+    $stmt = $pdo->prepare('UPDATE utilisateurs SET theme_couleur = ?, mode_sombre = ? WHERE id = ?');
+    $stmt->execute([$couleur, $modeSombre, $u['id']]);
+
+    // Redirection nécessaire pour que le nouveau thème s'applique dès cette page
+    // (currentUser() est mis en cache pour la durée de la requête en cours).
+    header('Location: profil.php?apparence=1');
+    exit;
+}
+
+$messageApparence = isset($_GET['apparence']) ? 'Apparence mise à jour.' : '';
+
+$titrePage = 'Mon profil';
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Mon profil - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
 <div class="container">
     <h3>Mon profil</h3>
+
+    <div class="card mb-4">
+        <div class="card-header">Apparence de l'interface</div>
+        <div class="card-body">
+            <?php if ($messageApparence): ?><div class="alert alert-info"><?= e($messageApparence) ?></div><?php endif; ?>
+            <form method="post">
+                <input type="hidden" name="action" value="apparence">
+                <div class="mb-3">
+                    <label class="form-label d-block">Couleur d'accent</label>
+                    <?php
+                    $couleursDisponibles = [
+                        'bleu' => ['#0d6efd', 'Bleu'],
+                        'vert' => ['#198754', 'Vert'],
+                        'violet' => ['#6f42c1', 'Violet'],
+                        'orange' => ['#fd7e14', 'Orange'],
+                        'rouge' => ['#dc3545', 'Rouge'],
+                    ];
+                    ?>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <?php foreach ($couleursDisponibles as $cle => [$hex, $libelle]): ?>
+                            <label class="d-flex flex-column align-items-center gap-1" style="cursor:pointer;">
+                                <input type="radio" name="theme_couleur" value="<?= $cle ?>" class="form-check-input" style="width:0;height:0;opacity:0;position:absolute;"
+                                       <?= ($u['theme_couleur'] ?? 'bleu') === $cle ? 'checked' : '' ?>
+                                       onclick="this.closest('form').querySelectorAll('.pastille-couleur').forEach(function(p){p.style.outline='none';}); this.nextElementSibling.style.outline='3px solid #333';">
+                                <span class="pastille-couleur" style="display:inline-block;width:32px;height:32px;border-radius:50%;background:<?= $hex ?>;<?= ($u['theme_couleur'] ?? 'bleu') === $cle ? 'outline:3px solid #333;' : '' ?>"></span>
+                                <span class="small"><?= $libelle ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div class="mb-3 form-check form-switch">
+                    <input type="checkbox" name="mode_sombre" value="1" class="form-check-input" id="modeSombre" <?= !empty($u['mode_sombre']) ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="modeSombre">Mode sombre</label>
+                </div>
+                <button class="btn btn-primary">Enregistrer l'apparence</button>
+            </form>
+        </div>
+    </div>
 
     <div class="card mb-4">
         <div class="card-header">Informations personnelles</div>

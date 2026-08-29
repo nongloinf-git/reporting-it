@@ -41,15 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         journaliser($utilisateur['id'] ?? null, 'connexion_echouee', 'Mot de passe incorrect ou email inconnu', $email);
     }
 }
+$titrePage = 'Connexion';
+require __DIR__ . '/../includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Connexion - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
 <div class="container">
     <div class="row justify-content-center mt-5">
         <div class="col-md-4">

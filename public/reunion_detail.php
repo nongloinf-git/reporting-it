@@ -49,8 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creer
     if ($description === '') {
         $message = 'La description de la tâche est obligatoire.';
     } else {
-        $stmt = $pdo->prepare('INSERT INTO taches_reunion (reunion_id, description, responsable_id, echeance) VALUES (?, ?, ?, ?)');
-        $stmt->execute([$reunionId, $description, $responsableId, $echeance]);
+        $stmt = $pdo->prepare('INSERT INTO taches_reunion (reunion_id, description, responsable_id, echeance, createur_id) VALUES (?, ?, ?, ?, ?)');
+        $stmt->execute([$reunionId, $description, $responsableId, $echeance, $u['id']]);
         $message = 'Tâche ajoutée.';
     }
 }
@@ -81,19 +81,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'suppr
     }
 }
 
-$stmtT = $pdo->prepare('SELECT t.*, resp.nom AS responsable_nom FROM taches_reunion t LEFT JOIN utilisateurs resp ON resp.id = t.responsable_id WHERE t.reunion_id = ? ORDER BY t.statut, t.echeance IS NULL, t.echeance');
+$stmtT = $pdo->prepare('SELECT t.*, resp.nom AS responsable_nom, (SELECT COUNT(*) FROM taches_reunion st WHERE st.parent_tache_id = t.id) AS nb_sous_taches FROM taches_reunion t LEFT JOIN utilisateurs resp ON resp.id = t.responsable_id WHERE t.reunion_id = ? AND t.parent_tache_id IS NULL ORDER BY t.statut, t.echeance IS NULL, t.echeance');
 $stmtT->execute([$reunionId]);
 $taches = $stmtT->fetchAll();
+
+$titrePage = $reunion['titre'];
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title><?= e($reunion['titre']) ?> - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
 <div class="container">
     <div class="d-flex justify-content-between align-items-start mb-3">
         <div>
@@ -167,12 +162,12 @@ $taches = $stmtT->fetchAll();
     <?php else: ?>
         <table class="table table-bordered bg-white">
             <thead class="table-light">
-                <tr><th>Tâche</th><th>Responsable</th><th>Échéance</th><th>Statut</th><th></th></tr>
+                <tr><th>Tâche</th><th>Responsable</th><th>Échéance</th><th>Statut</th><th></th><th></th></tr>
             </thead>
             <tbody>
             <?php foreach ($taches as $t): ?>
                 <tr>
-                    <td><?= e($t['description']) ?></td>
+                    <td><?= e($t['titre'] ?: $t['description']) ?></td>
                     <td><?= e($t['responsable_nom'] ?? '-') ?></td>
                     <td><?= $t['echeance'] ? (new DateTime($t['echeance']))->format('d/m/Y') : '-' ?></td>
                     <td>
@@ -198,6 +193,11 @@ $taches = $stmtT->fetchAll();
                                 <button class="btn btn-sm btn-outline-danger">Suppr.</button>
                             </form>
                         <?php endif; ?>
+                    </td>
+                    <td>
+                        <a href="tache_detail.php?id=<?= (int)$t['id'] ?>" class="btn btn-sm btn-outline-secondary">
+                            Détail<?= $t['nb_sous_taches'] > 0 ? ' (' . (int)$t['nb_sous_taches'] . ')' : '' ?>
+                        </a>
                     </td>
                 </tr>
             <?php endforeach; ?>

@@ -38,16 +38,10 @@ $entrees = $stmt->fetchAll();
 
 $utilisateurs = $pdo->query('SELECT id, nom FROM utilisateurs ORDER BY nom')->fetchAll();
 $actionsDistinctes = $pdo->query('SELECT DISTINCT action FROM journal_activite ORDER BY action')->fetchAll(PDO::FETCH_COLUMN);
+$titrePage = "Journal d'activité";
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Journal d'activité - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
 <div class="container">
     <h3>Journal d'activité</h3>
     <p class="text-muted">Connexions et actions sensibles (les <?= $limite ?> entrées les plus récentes, selon les filtres ci-dessous).</p>

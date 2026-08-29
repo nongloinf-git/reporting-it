@@ -89,16 +89,10 @@ $stmt = $pdo->prepare('SELECT * FROM rapports WHERE utilisateur_id = ? AND annee
 $stmt->execute([$u['id'], $annee, $semaine]);
 $rapport = $stmt->fetch();
 $verrouille = ($rapport['statut'] ?? '') === 'valide';
+$titrePage = 'Mon rapport';
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Mon rapport - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
 <div class="container">
     <h3>Mon rapport hebdomadaire</h3>
 

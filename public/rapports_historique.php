@@ -76,19 +76,13 @@ foreach ($parCollaborateur as $nom => $rapportsCollaborateur) {
 }
 
 $parametresExport = http_build_query(['nb_semaines' => $nombreSemaines, 'collaborateur_id' => $collaborateurId ?? '']);
+$titrePage = 'Historique des rapports';
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Historique des rapports - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js"></script>
-    <style>.docx-preview img { max-width: 100%; }</style>
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js"></script>
+<style>.docx-preview img { max-width: 100%; }</style>
 <div class="container">
     <h3>Historique des rapports</h3>
     <p class="text-muted">Affiche les rapports sur plusieurs semaines passées (au lieu d'une seule semaine à la fois).</p>

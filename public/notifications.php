@@ -23,16 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $resultats = array_values(array_filter($resultats, fn($r) => in_array($r['email'], $emailsEquipe, true)));
     }
 }
+$titrePage = 'Notifications';
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Notifications - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
 <div class="container">
     <h3>Rappels par email</h3>
     <p class="text-muted">Envoie un email de rappel à chaque collaborateur n'ayant pas encore soumis son rapport pour la semaine sélectionnée.</p>

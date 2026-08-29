@@ -31,11 +31,12 @@ if ($u['role'] === 'collaborateur') {
     unset($m);
 }
 
-// Mes tâches de réunions (tous rôles) : tâches qui me sont assignées, non terminées en priorité
+// Mes tâches (tous rôles) : tâches qui me sont assignées, issues d'une réunion ou créées
+// directement, non terminées en priorité.
 $stmtTaches = $pdo->prepare(
-    "SELECT t.*, r.titre AS reunion_titre, r.id AS reunion_id
+    "SELECT t.*, r.titre AS reunion_titre
      FROM taches_reunion t
-     JOIN reunions r ON r.id = t.reunion_id
+     LEFT JOIN reunions r ON r.id = t.reunion_id
      WHERE t.responsable_id = ?
      ORDER BY (t.statut = 'termine'), t.echeance IS NULL, t.echeance
      LIMIT 10"
@@ -52,17 +53,12 @@ if ($u['role'] === 'collaborateur') {
     $labelsGraphique = array_map(fn($m) => $m['nom'], $membres);
     $donneesGraphique = array_map(fn($m) => $m['rapport']['temps_passe'] ?? 0, $membres);
 }
+
+$titrePage = 'Tableau de bord';
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Tableau de bord - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <div class="container">
     <h3>Tableau de bord</h3>
     <p class="text-muted">Semaine ISO <?= $sem['semaine'] ?> - <?= $sem['annee'] ?></p>
@@ -145,19 +141,22 @@ if ($u['role'] === 'collaborateur') {
         });
     </script>
 
-    <h5 class="mt-5">Mes tâches de réunions</h5>
+    <div class="d-flex justify-content-between align-items-center mt-5">
+        <h5 class="mb-0">Mes tâches</h5>
+        <a href="taches.php" class="btn btn-sm btn-outline-primary">Voir toutes mes tâches</a>
+    </div>
     <?php if (!$mesTaches): ?>
-        <p class="text-muted">Aucune tâche de réunion ne vous est assignée.</p>
+        <p class="text-muted">Aucune tâche ne vous est assignée.</p>
     <?php else: ?>
         <table class="table table-bordered bg-white">
             <thead class="table-light">
-                <tr><th>Tâche</th><th>Réunion</th><th>Échéance</th><th>Statut</th></tr>
+                <tr><th>Tâche</th><th>Origine</th><th>Échéance</th><th>Statut</th></tr>
             </thead>
             <tbody>
             <?php foreach ($mesTaches as $t): ?>
                 <tr>
-                    <td><?= e($t['description']) ?></td>
-                    <td><a href="reunion_detail.php?id=<?= (int)$t['reunion_id'] ?>"><?= e($t['reunion_titre']) ?></a></td>
+                    <td><a href="tache_detail.php?id=<?= (int)$t['id'] ?>"><?= e($t['titre'] ?: mb_strimwidth($t['description'], 0, 60, '...')) ?></a></td>
+                    <td><?= $t['reunion_titre'] ? e($t['reunion_titre']) : '<span class="text-muted">Tâche directe</span>' ?></td>
                     <td><?= $t['echeance'] ? (new DateTime($t['echeance']))->format('d/m/Y') : '-' ?></td>
                     <td><span class="badge bg-<?= classeBadgeStatutTache($t['statut']) ?>"><?= libelleStatutTache($t['statut']) ?></span></td>
                 </tr>

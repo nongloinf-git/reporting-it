@@ -10,6 +10,7 @@
      - `database/migration_2.sql` (fichiers Word joints aux rapports)
      - `database/migration_3.sql` (photo de profil, désactivation de compte, permission réunions, logo société, module réunions)
      - `database/migration_4.sql` (dates d'envoi/validation des rapports, journal d'activité)
+     - `database/migration_5.sql` (personnalisation d'interface, tâches directes et sous-tâches)
 4. Vérifiez les identifiants dans `config/database.php` si votre MySQL n'utilise pas `root` sans mot de passe.
 5. Ouvrez votre navigateur sur : **http://localhost/reporting-it/public/**
 
@@ -46,6 +47,30 @@ Sur la page **Utilisateurs** (admin), en plus de la création/suppression déjà
 
 Page **Paramètres** (admin) : uploadez le logo de votre société (PNG/JPG/SVG/WEBP, 2 Mo max) et définissez un nom affiché dans la barre de navigation de toute l'application.
 
+## Personnalisation de l'interface (tous les utilisateurs)
+
+Sur **Mon profil**, chaque utilisateur peut choisir :
+- Une **couleur d'accent** parmi 5 presets (bleu, vert, violet, orange, rouge), appliquée à la barre de navigation, aux boutons et aux liens.
+- Un **mode sombre**, basé sur le thème natif de Bootstrap 5.3 (`data-bs-theme`).
+
+Ces préférences sont propres à chaque compte, stockées en base (`theme_couleur`, `mode_sombre`) et appliquées immédiatement sur toutes les pages dès l'enregistrement.
+
+## Menu "Options" (manager/admin)
+
+Pour désencombrer la barre de navigation, les pages secondaires sont regroupées dans un menu déroulant **Options** :
+- **Manager et admin** y trouvent "Rappels email".
+- **Admin uniquement** y trouve en plus "Utilisateurs", "Paramètres" et "Journal d'activité".
+
+Les restrictions d'accès à ces pages restent bien sûr appliquées côté serveur, indépendamment de ce qui est affiché dans le menu.
+
+## Gestion des tâches (avec ou sans réunion, et sous-tâches)
+
+La rubrique **Tâches** (accessible à tous) centralise désormais toutes les tâches, qu'elles proviennent d'une réunion ou non :
+- **Tâches directes** : un gestionnaire (admin, ou utilisateur avec la permission "Réunions" — qui couvre aussi la gestion des tâches) peut créer une tâche via "+ Nouvelle tâche" **sans passer par une réunion**, avec titre, description, responsable et échéance.
+- **Sous-tâches** : depuis le détail d'une tâche (qu'elle soit directe ou issue d'une réunion), un gestionnaire peut ajouter des sous-tâches, chacune avec son propre responsable, échéance et statut.
+- **Filtres** : la liste des tâches se filtre par collaborateur, statut (À faire/En cours/Terminée) et origine (issue d'une réunion / tâche directe). Un simple collaborateur (sans la permission de gestion) ne voit et ne peut filtrer que **ses propres tâches**, sans possibilité de voir celles des autres.
+- Comme pour les tâches de réunion, le responsable d'une tâche ou sous-tâche peut faire évoluer son statut sans avoir besoin de la permission de gestion complète ; seul un gestionnaire peut créer, modifier l'organisation ou supprimer.
+
 ## Module Réunions
 
 Nouvelle rubrique **Réunions**, accessible à tous mais avec des droits différenciés :
@@ -57,7 +82,8 @@ Nouvelle rubrique **Réunions**, accessible à tous mais avec des droits différ
 - **Tout participant** (même sans la permission de gestion) peut :
   - Consulter les réunions auxquelles il est convié et leurs tâches ;
   - Mettre à jour le statut des tâches dont il est responsable (À faire / En cours / Terminée).
-- Le tableau de bord de chaque utilisateur affiche désormais une section **"Mes tâches de réunions"** listant les tâches qui lui sont assignées, non terminées en priorité.
+- Chaque tâche de réunion dispose d'un lien **"Détail"** menant vers sa page dédiée (`tache_detail.php`), où l'on retrouve les sous-tâches éventuelles — voir la section "Gestion des tâches" ci-dessus.
+- Le tableau de bord de chaque utilisateur affiche désormais une section **"Mes tâches"** listant toutes les tâches qui lui sont assignées (issues d'une réunion ou directes), non terminées en priorité.
 
 ## Fonctionnement du reporting hebdomadaire
 
@@ -132,10 +158,11 @@ En plus de la vue liste, la page **Réunions** propose une **vue calendrier** (b
 
 ## Prochaines pistes d'évolution possibles
 
-- Notification email automatique à l'assignation d'une tâche de réunion
-- Rappel email automatique avant l'échéance d'une tâche de réunion
-- Export CSV/PDF des tâches de réunion
+- Notification email automatique à l'assignation d'une tâche
+- Rappel email automatique avant l'échéance d'une tâche
+- Export CSV/PDF des tâches (réunion ou directes)
 - Export CSV/PDF du journal d'activité
+- Filtres avancés sur la vue calendrier (par collaborateur, par équipe)
 
 ## Dates de suivi des rapports (envoi et validation)
 

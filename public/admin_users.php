@@ -137,16 +137,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $utilisateurs = $pdo->query('SELECT u.*, m.nom AS manager_nom FROM utilisateurs u LEFT JOIN utilisateurs m ON m.id = u.manager_id ORDER BY u.role, u.nom')->fetchAll();
 $managers = $pdo->query("SELECT id, nom FROM utilisateurs WHERE role = 'manager'")->fetchAll();
+$titrePage = 'Utilisateurs';
+require __DIR__ . '/../includes/header.php';
+require __DIR__ . '/../includes/navbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Utilisateurs - Reporting IT</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<?php require __DIR__ . '/../includes/navbar.php'; ?>
 <div class="container">
     <h3>Gestion des utilisateurs</h3>
 
