@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/validation.php';
 requireLogin();
 
 $u = currentUser();
@@ -19,7 +20,8 @@ $erreurMdp = '';
 
 // --- Mise à jour des informations (nom + photo) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'infos') {
-    $nom = trim($_POST['nom'] ?? '');
+    requireCsrf();
+    $nom = limiterLongueur($_POST['nom'] ?? '', 100);
 
     if ($nom === '') {
         $erreurInfos = 'Le nom ne peut pas être vide.';
@@ -37,6 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'infos
                 $erreurInfos = 'Formats acceptés pour la photo : JPG, PNG, WEBP.';
             } elseif ($fichier['size'] > 3 * 1024 * 1024) {
                 $erreurInfos = 'La photo dépasse la taille maximale autorisée (3 Mo).';
+            } elseif (@getimagesize($fichier['tmp_name']) === false) {
+                $erreurInfos = "Le fichier envoyé n'est pas une image valide.";
             } else {
                 $nouveauNom = 'photo_' . $u['id'] . '_' . time() . '.' . $extension;
                 if (move_uploaded_file($fichier['tmp_name'], DOSSIER_PHOTOS . '/' . $nouveauNom)) {
@@ -63,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'infos
 
 // --- Changement de mot de passe ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mot_de_passe') {
+    requireCsrf();
     $ancien = $_POST['ancien_mot_de_passe'] ?? '';
     $nouveau = $_POST['nouveau_mot_de_passe'] ?? '';
     $confirmation = $_POST['confirmation_mot_de_passe'] ?? '';
@@ -71,10 +76,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mot_d
     $stmt->execute([$u['id']]);
     $hashActuel = $stmt->fetchColumn();
 
+    $erreurRobustesse = erreurForceMotDePasse($nouveau);
+
     if (!password_verify($ancien, $hashActuel)) {
         $erreurMdp = 'Mot de passe actuel incorrect.';
-    } elseif (mb_strlen($nouveau) < 8) {
-        $erreurMdp = 'Le nouveau mot de passe doit contenir au moins 8 caractères.';
+    } elseif ($erreurRobustesse !== null) {
+        $erreurMdp = $erreurRobustesse;
     } elseif ($nouveau !== $confirmation) {
         $erreurMdp = 'La confirmation ne correspond pas au nouveau mot de passe.';
     } else {
@@ -86,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mot_d
 
 // --- Personnalisation de l'apparence (couleur, mode sombre) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'apparence') {
+    requireCsrf();
     $couleursValides = ['bleu', 'vert', 'violet', 'orange', 'rouge'];
     $couleur = in_array($_POST['theme_couleur'] ?? '', $couleursValides, true) ? $_POST['theme_couleur'] : 'bleu';
     $modeSombre = isset($_POST['mode_sombre']) ? 1 : 0;
@@ -113,6 +121,7 @@ require __DIR__ . '/../includes/navbar.php';
         <div class="card-body">
             <?php if ($messageApparence): ?><div class="alert alert-info"><?= e($messageApparence) ?></div><?php endif; ?>
             <form method="post">
+                <?= champCsrf() ?>
                 <input type="hidden" name="action" value="apparence">
                 <div class="mb-3">
                     <label class="form-label d-block">Couleur d'accent</label>
@@ -153,6 +162,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php if ($erreurInfos): ?><div class="alert alert-danger"><?= e($erreurInfos) ?></div><?php endif; ?>
 
             <form method="post" enctype="multipart/form-data" class="row g-3 align-items-center">
+                <?= champCsrf() ?>
                 <input type="hidden" name="action" value="infos">
                 <div class="col-auto">
                     <img src="<?= e(urlPhotoProfil($u['photo_profil'], $u['nom'])) ?>" alt="" style="height:64px; width:64px; object-fit:cover; border-radius:50%;">
@@ -180,6 +190,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php if ($erreurMdp): ?><div class="alert alert-danger"><?= e($erreurMdp) ?></div><?php endif; ?>
 
             <form method="post" class="row g-3">
+                <?= champCsrf() ?>
                 <input type="hidden" name="action" value="mot_de_passe">
                 <div class="col-md-4">
                     <label class="form-label">Mot de passe actuel</label>

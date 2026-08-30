@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/validation.php';
 requireLogin();
 
 $u = currentUser();
@@ -38,16 +39,22 @@ $message = '';
 
 // Création d'une tâche
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creer_tache') {
+    requireCsrf();
     if (!$peutCreerTaches) {
         http_response_code(403);
         die('Seul l\'organisateur ou un admin peut ajouter des tâches à cette réunion.');
     }
-    $description = trim($_POST['description'] ?? '');
+    $description = limiterLongueur($_POST['description'] ?? '', 2000);
     $responsableId = ($_POST['responsable_id'] ?? '') !== '' ? (int) $_POST['responsable_id'] : null;
-    $echeance = ($_POST['echeance'] ?? '') !== '' ? $_POST['echeance'] : null;
+    $echeanceBrute = trim($_POST['echeance'] ?? '');
+    $echeance = $echeanceBrute !== '' ? $echeanceBrute : null;
 
-    if ($description === '') {
+    if ($responsableId !== null && !in_array($responsableId, $idsParticipants, true)) {
+        $message = 'Le responsable choisi ne fait pas partie des participants de la réunion.';
+    } elseif ($description === '') {
         $message = 'La description de la tâche est obligatoire.';
+    } elseif ($echeance !== null && !dateValide($echeance)) {
+        $message = "L'échéance saisie est invalide.";
     } else {
         $stmt = $pdo->prepare('INSERT INTO taches_reunion (reunion_id, description, responsable_id, echeance, createur_id) VALUES (?, ?, ?, ?, ?)');
         $stmt->execute([$reunionId, $description, $responsableId, $echeance, $u['id']]);
@@ -57,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creer
 
 // Mise à jour du statut d'une tâche (par le responsable ou un gestionnaire)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_statut_tache') {
+    requireCsrf();
     $tacheId = (int) $_POST['tache_id'];
     $nouveauStatut = $_POST['statut'] ?? 'a_faire';
 
@@ -74,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_s
 
 // Suppression d'une tâche (gestionnaires uniquement)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'supprimer_tache') {
+    requireCsrf();
     if ($peutCreerTaches) {
         $stmt = $pdo->prepare('DELETE FROM taches_reunion WHERE id = ? AND reunion_id = ?');
         $stmt->execute([(int) $_POST['tache_id'], $reunionId]);
@@ -134,6 +143,7 @@ require __DIR__ . '/../includes/navbar.php';
         <div class="card mb-3">
             <div class="card-body">
                 <form method="post" class="row g-2">
+                    <?= champCsrf() ?>
                     <input type="hidden" name="action" value="creer_tache">
                     <div class="col-md-5">
                         <input type="text" name="description" class="form-control" placeholder="Description de la tâche" required>
@@ -173,6 +183,7 @@ require __DIR__ . '/../includes/navbar.php';
                     <td>
                         <?php if ($gestionnaire || (int)$t['responsable_id'] === (int)$u['id']): ?>
                             <form method="post" class="d-flex gap-1">
+                                <?= champCsrf() ?>
                                 <input type="hidden" name="action" value="maj_statut_tache">
                                 <input type="hidden" name="tache_id" value="<?= (int)$t['id'] ?>">
                                 <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -188,6 +199,7 @@ require __DIR__ . '/../includes/navbar.php';
                     <td>
                         <?php if ($peutCreerTaches): ?>
                             <form method="post" onsubmit="return confirm('Supprimer cette tâche ?');">
+                                <?= champCsrf() ?>
                                 <input type="hidden" name="action" value="supprimer_tache">
                                 <input type="hidden" name="tache_id" value="<?= (int)$t['id'] ?>">
                                 <button class="btn btn-sm btn-outline-danger">Suppr.</button>

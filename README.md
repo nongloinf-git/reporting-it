@@ -14,12 +14,41 @@
 4. Vérifiez les identifiants dans `config/database.php` si votre MySQL n'utilise pas `root` sans mot de passe.
 5. Ouvrez votre navigateur sur : **http://localhost/reporting-it/public/**
 
+> ℹ️ Aucune nouvelle migration SQL n'est nécessaire pour la mise à jour "sécurité" (protection CSRF, anti-brute-force, validation des données) : remplacez simplement les fichiers PHP.
+
 ## Connexion par défaut
 
 - Email : `admin@local.test`
 - Mot de passe : `Admin123!`
 
 ⚠️ Pensez à changer ce mot de passe (ou à créer un nouveau compte admin puis supprimer celui-ci) une fois connecté.
+
+## Sécurité
+
+### Protection contre les injections SQL
+Toutes les requêtes de l'application utilisent des **requêtes préparées PDO** (aucune concaténation de données utilisateur dans du SQL). La configuration désactive en plus l'émulation des requêtes préparées (`PDO::ATTR_EMULATE_PREPARES => false`) pour forcer le binding natif du driver MySQL, en défense en profondeur.
+
+### Protection CSRF (Cross-Site Request Forgery)
+Chaque formulaire de l'application inclut un jeton unique généré par session (`includes/csrf.php`). Toute requête POST sans jeton valide est rejetée (HTTP 403) avant tout traitement — testé sur l'ensemble des 23 formulaires de l'application.
+
+### Sécurité des sessions
+- Cookie de session `httponly` (inaccessible en JavaScript) et `samesite=Lax` (non transmis lors de requêtes intersites).
+- Mode strict de session (anti-fixation de session).
+- Régénération de l'identifiant de session à la connexion, puis périodiquement toutes les 15 minutes.
+- Déconnexion automatique après 5 minutes d'inactivité (voir section dédiée plus bas).
+
+### Protection anti-brute-force
+Après **5 échecs de connexion** en 15 minutes sur un même email, toute nouvelle tentative (même avec le bon mot de passe) est bloquée temporairement. Chaque tentative est journalisée.
+
+### Hashage des mots de passe
+Les mots de passe sont hashés avec `password_hash()` (bcrypt), jamais stockés en clair. Une règle de robustesse commune est appliquée partout où un mot de passe est défini (création par l'admin, réinitialisation, changement personnel) : au moins 8 caractères, avec au moins une lettre et un chiffre.
+
+### Validation des données
+Le module `includes/validation.php` centralise : validation du format email, robustesse du mot de passe, plages numériques (ex : temps passé entre 0 et 168h), validité de dates, et troncature défensive de la longueur des champs texte. Les fichiers uploadés (photos, logo, rapports Word) sont vérifiés sur leur **contenu réel** et pas seulement leur extension : `getimagesize()` pour les images, ouverture effective de l'archive ZIP pour les `.docx`.
+
+### Autorisations renforcées (failles corrigées lors de cet audit)
+- Un rapport déjà **validé** pouvait être modifié via une requête POST forgée directement (le champ `disabled` du formulaire n'était qu'un confort d'affichage côté navigateur, pas une protection) — désormais bloqué côté serveur.
+- Un manager pouvait valider ou commenter le rapport d'une équipe qu'il ne gère pas en modifiant simplement l'identifiant du rapport dans la requête (faille IDOR) — une vérification d'appartenance a été ajoutée avant toute action.
 
 ## Rôles
 

@@ -3,15 +3,32 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/journal.php';
+require_once __DIR__ . '/../includes/validation.php';
 requireRole(['manager', 'admin']);
 
 $u = currentUser();
 $pdo = getPDO();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrf();
     $rapportId = (int) $_POST['rapport_id'];
-    $commentaire = trim($_POST['commentaire'] ?? '');
+    $commentaire = limiterLongueur($_POST['commentaire'] ?? '', 2000);
     $action = $_POST['action'] ?? '';
+
+    // Sécurité : un manager ne peut agir que sur les rapports de ses propres
+    // collaborateurs (l'admin peut agir sur tous les rapports). Sans ce contrôle,
+    // un manager pourrait valider/commenter le rapport d'une autre équipe en
+    // forgeant simplement l'identifiant dans la requête (faille de type IDOR).
+    $stmtProprietaire = $pdo->prepare('SELECT ut.manager_id FROM rapports r JOIN utilisateurs ut ON ut.id = r.utilisateur_id WHERE r.id = ?');
+    $stmtProprietaire->execute([$rapportId]);
+    $proprietaire = $stmtProprietaire->fetch();
+
+    $autorise = $proprietaire && ($u['role'] === 'admin' || (int) $proprietaire['manager_id'] === (int) $u['id']);
+
+    if (!$autorise) {
+        http_response_code(403);
+        die('Vous n\'avez pas accès à ce rapport.');
+    }
 
     if ($action === 'valider') {
         $stmt = $pdo->prepare("UPDATE rapports SET statut = 'valide', date_validation = NOW() WHERE id = ?");
@@ -199,6 +216,7 @@ require __DIR__ . '/../includes/navbar.php';
                 <?php endif; ?>
 
                 <form method="post" class="mt-3">
+                    <?= champCsrf() ?>
                     <input type="hidden" name="rapport_id" value="<?= (int)$r['id'] ?>">
                     <div class="mb-2">
                         <textarea name="commentaire" class="form-control" rows="2" placeholder="Ajouter un commentaire..."></textarea>

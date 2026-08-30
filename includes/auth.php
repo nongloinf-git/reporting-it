@@ -1,9 +1,24 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+    // Durcissement de la session, à définir AVANT session_start() :
+    // - httponly : le cookie de session est inaccessible en JavaScript (protège contre le vol de session via XSS).
+    // - samesite=Lax : le cookie n'est pas envoyé lors de requêtes déclenchées depuis un autre site
+    //   (première ligne de défense contre le CSRF, en complément du jeton CSRF applicatif).
+    // - secure : le cookie n'est envoyé qu'en HTTPS, si le site est servi en HTTPS (WampServer en local est souvent en HTTP simple).
+    // - use_strict_mode : le serveur refuse un identifiant de session non généré par lui-même (anti-fixation de session).
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_samesite', 'Lax');
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        ini_set('session.cookie_secure', '1');
+    }
     session_start();
 }
 
+require_once __DIR__ . '/csrf.php';
+
 define('DUREE_INACTIVITE_MAX_SECONDES', 300); // 5 minutes
+define('DUREE_REGENERATION_SESSION_SECONDES', 900); // 15 minutes
 
 function isLoggedIn(): bool
 {
@@ -66,6 +81,16 @@ function requireLogin(): void
         exit;
     }
     $_SESSION['derniere_activite'] = time();
+
+    // Régénération périodique de l'identifiant de session (en plus de celle faite à la
+    // connexion) : limite la fenêtre d'exploitation si un identifiant de session venait
+    // à être compromis (session fixation / vol de cookie sur une session de longue durée).
+    if (!isset($_SESSION['derniere_regeneration'])) {
+        $_SESSION['derniere_regeneration'] = time();
+    } elseif ((time() - $_SESSION['derniere_regeneration']) > DUREE_REGENERATION_SESSION_SECONDES) {
+        session_regenerate_id(true);
+        $_SESSION['derniere_regeneration'] = time();
+    }
 
     if (currentUser() === null) {
         header('Location: login.php?desactive=1');

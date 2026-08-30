@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/validation.php';
 requireTachePermission();
 
 $u = currentUser();
@@ -21,24 +22,31 @@ if ($parentId) {
 $erreur = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $titre = trim($_POST['titre'] ?? '');
-    $description = trim($_POST['description'] ?? '');
+    requireCsrf();
+    $titre = limiterLongueur($_POST['titre'] ?? '', 255);
+    $description = limiterLongueur($_POST['description'] ?? '', 5000);
     $responsableId = ($_POST['responsable_id'] ?? '') !== '' ? (int) $_POST['responsable_id'] : null;
     $echeance = ($_POST['echeance'] ?? '') !== '' ? $_POST['echeance'] : null;
     $parentIdPost = ($_POST['parent_tache_id'] ?? '') !== '' ? (int) $_POST['parent_tache_id'] : null;
 
     if ($titre === '' && $description === '') {
         $erreur = 'Veuillez indiquer au moins un titre ou une description.';
+    } elseif ($echeance !== null && !dateValide($echeance)) {
+        $erreur = "L'échéance saisie est invalide.";
     } else {
-        $stmt = $pdo->prepare(
-            'INSERT INTO taches_reunion (reunion_id, parent_tache_id, createur_id, titre, description, responsable_id, echeance)
-             VALUES (NULL, ?, ?, ?, ?, ?, ?)'
-        );
-        $stmt->execute([$parentIdPost, $u['id'], $titre ?: null, $description ?: ($titre ?: 'Tâche'), $responsableId, $echeance]);
-        $nouvelId = (int) $pdo->lastInsertId();
+        try {
+            $stmt = $pdo->prepare(
+                'INSERT INTO taches_reunion (reunion_id, parent_tache_id, createur_id, titre, description, responsable_id, echeance)
+                 VALUES (NULL, ?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$parentIdPost, $u['id'], $titre ?: null, $description ?: ($titre ?: 'Tâche'), $responsableId, $echeance]);
+            $nouvelId = (int) $pdo->lastInsertId();
 
-        header('Location: ' . ($parentIdPost ? 'tache_detail.php?id=' . $parentIdPost : 'tache_detail.php?id=' . $nouvelId));
-        exit;
+            header('Location: ' . ($parentIdPost ? 'tache_detail.php?id=' . $parentIdPost : 'tache_detail.php?id=' . $nouvelId));
+            exit;
+        } catch (PDOException $e) {
+            $erreur = 'Impossible de créer la tâche (référence invalide).';
+        }
     }
 }
 
@@ -59,6 +67,7 @@ require __DIR__ . '/../includes/navbar.php';
     <?php if ($erreur): ?><div class="alert alert-danger"><?= e($erreur) ?></div><?php endif; ?>
 
     <form method="post">
+        <?= champCsrf() ?>
         <?php if ($parentId): ?>
             <input type="hidden" name="parent_tache_id" value="<?= (int)$parentId ?>">
         <?php endif; ?>

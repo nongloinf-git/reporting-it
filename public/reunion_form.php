@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/validation.php';
 requireReunionPermission();
 
 $u = currentUser();
@@ -33,14 +34,20 @@ if ($reunionId) {
 $erreur = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $titre = trim($_POST['titre'] ?? '');
-    $description = trim($_POST['description'] ?? '');
+    requireCsrf();
+    $titre = limiterLongueur($_POST['titre'] ?? '', 200);
+    $description = limiterLongueur($_POST['description'] ?? '', 5000);
     $dateReunion = $_POST['date_reunion'] ?? '';
-    $lieu = trim($_POST['lieu'] ?? '');
+    $lieu = limiterLongueur($_POST['lieu'] ?? '', 200);
     $participants = array_map('intval', $_POST['participants'] ?? []);
+
+    // Valide le format datetime-local (YYYY-MM-DDTHH:MM) avant de le transmettre à MySQL
+    $dateValideFormat = (bool) preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $dateReunion);
 
     if ($titre === '' || $dateReunion === '') {
         $erreur = 'Le titre et la date sont obligatoires.';
+    } elseif (!$dateValideFormat) {
+        $erreur = 'La date et l\'heure saisies sont invalides.';
     } else {
         if ($reunionId) {
             $stmt = $pdo->prepare('UPDATE reunions SET titre = ?, description = ?, date_reunion = ?, lieu = ? WHERE id = ?');
@@ -76,6 +83,7 @@ require __DIR__ . '/../includes/navbar.php';
     <?php if ($erreur): ?><div class="alert alert-danger"><?= e($erreur) ?></div><?php endif; ?>
 
     <form method="post">
+        <?= champCsrf() ?>
         <div class="row g-3 mb-3">
             <div class="col-md-6">
                 <label class="form-label">Titre</label>

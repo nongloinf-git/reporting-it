@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/validation.php';
 requireRole(['admin']);
 
 $pdo = getPDO();
@@ -15,7 +16,8 @@ $message = '';
 $erreur = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nomSociete = trim($_POST['nom_societe'] ?? '');
+    requireCsrf();
+    $nomSociete = limiterLongueur($_POST['nom_societe'] ?? '', 150);
     setParametre('nom_societe', $nomSociete !== '' ? $nomSociete : null);
 
     if (!empty($_FILES['logo']['name'])) {
@@ -29,6 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $erreur = 'Formats acceptés pour le logo : PNG, JPG, SVG, WEBP.';
         } elseif ($fichier['size'] > 2 * 1024 * 1024) {
             $erreur = 'Le logo dépasse la taille maximale autorisée (2 Mo).';
+        } elseif ($extension !== 'svg' && @getimagesize($fichier['tmp_name']) === false) {
+            // Vérifie que le contenu est réellement une image (et pas un fichier
+            // renommé avec une extension trompeuse) — le SVG n'est pas concerné
+            // par ce contrôle car ce n'est pas un format bitmap.
+            $erreur = "Le fichier envoyé n'est pas une image valide.";
         } else {
             $ancienLogo = getParametre('logo_societe');
             $nouveauNom = 'logo_societe_' . time() . '.' . $extension;
@@ -70,6 +77,7 @@ require __DIR__ . '/../includes/navbar.php';
                 </div>
             <?php endif; ?>
             <form method="post" enctype="multipart/form-data" class="row g-3">
+                <?= champCsrf() ?>
                 <div class="col-md-4">
                     <label class="form-label">Nom de la société (affiché dans le menu)</label>
                     <input type="text" name="nom_societe" class="form-control" value="<?= e($nomSocieteActuel ?? '') ?>" placeholder="Ex : Acme SARL">

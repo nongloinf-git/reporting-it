@@ -17,10 +17,16 @@ function getPDO(): PDO
                 [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    // Désactive l'émulation des requêtes préparées : les valeurs sont
+                    // envoyées séparément de la requête SQL par le driver MySQL natif
+                    // (protection supplémentaire contre les injections SQL, même si
+                    // du code futur construisait une requête de façon moins rigoureuse).
+                    PDO::ATTR_EMULATE_PREPARES => false,
                 ]
             );
         } catch (PDOException $e) {
-            die('Erreur de connexion à la base de données : ' . $e->getMessage());
+            error_log('Erreur de connexion à la base de données : ' . $e->getMessage());
+            die('Erreur de connexion à la base de données. Contactez votre administrateur.');
         }
     }
     return $pdo;

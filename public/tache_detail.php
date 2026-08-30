@@ -45,6 +45,7 @@ $message = '';
 
 // Mise à jour du statut (gestionnaire ou responsable)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_statut') {
+    requireCsrf();
     $nouveauStatut = $_POST['statut'] ?? 'a_faire';
     if (($gestionnaire || $estResponsable) && in_array($nouveauStatut, ['a_faire', 'en_cours', 'termine'], true)) {
         $pdo->prepare('UPDATE taches_reunion SET statut = ? WHERE id = ?')->execute([$nouveauStatut, $tacheId]);
@@ -55,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_s
 
 // Suppression (gestionnaire uniquement)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'supprimer') {
+    requireCsrf();
     if ($gestionnaire) {
         $pdo->prepare('DELETE FROM taches_reunion WHERE id = ?')->execute([$tacheId]);
         header('Location: ' . ($tache['parent_tache_id'] ? 'tache_detail.php?id=' . $tache['parent_tache_id'] : 'taches.php'));
@@ -64,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'suppr
 
 // Mise à jour du statut d'une sous-tâche directement depuis cette page
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_statut_sous_tache') {
+    requireCsrf();
     $sousTacheId = (int) $_POST['sous_tache_id'];
     $nouveauStatut = $_POST['statut'] ?? 'a_faire';
     $stmtST = $pdo->prepare('SELECT responsable_id FROM taches_reunion WHERE id = ? AND parent_tache_id = ?');
@@ -78,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_s
 
 // Suppression d'une sous-tâche (gestionnaire uniquement)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'supprimer_sous_tache') {
+    requireCsrf();
     if ($gestionnaire) {
         $pdo->prepare('DELETE FROM taches_reunion WHERE id = ? AND parent_tache_id = ?')->execute([(int) $_POST['sous_tache_id'], $tacheId]);
         $message = 'Sous-tâche supprimée.';
@@ -119,6 +123,7 @@ require __DIR__ . '/../includes/navbar.php';
         </div>
         <?php if ($gestionnaire): ?>
             <form method="post" onsubmit="return confirm('Supprimer cette tâche et toutes ses sous-tâches ?');">
+                <?= champCsrf() ?>
                 <input type="hidden" name="action" value="supprimer">
                 <button class="btn btn-outline-danger btn-sm">Supprimer la tâche</button>
             </form>
@@ -145,6 +150,7 @@ require __DIR__ . '/../includes/navbar.php';
                     <p class="text-muted small mb-1">Statut</p>
                     <?php if ($gestionnaire || $estResponsable): ?>
                         <form method="post" class="d-flex gap-1">
+                            <?= champCsrf() ?>
                             <input type="hidden" name="action" value="maj_statut">
                             <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
                                 <option value="a_faire" <?= $tache['statut'] === 'a_faire' ? 'selected' : '' ?>>À faire</option>
@@ -183,6 +189,7 @@ require __DIR__ . '/../includes/navbar.php';
                     <td>
                         <?php if ($gestionnaire || (int)$st['responsable_id'] === (int)$u['id']): ?>
                             <form method="post" class="d-flex gap-1">
+                                <?= champCsrf() ?>
                                 <input type="hidden" name="action" value="maj_statut_sous_tache">
                                 <input type="hidden" name="sous_tache_id" value="<?= (int)$st['id'] ?>">
                                 <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -198,6 +205,7 @@ require __DIR__ . '/../includes/navbar.php';
                     <td>
                         <?php if ($gestionnaire): ?>
                             <form method="post" onsubmit="return confirm('Supprimer cette sous-tâche ?');">
+                                <?= champCsrf() ?>
                                 <input type="hidden" name="action" value="supprimer_sous_tache">
                                 <input type="hidden" name="sous_tache_id" value="<?= (int)$st['id'] ?>">
                                 <button class="btn btn-sm btn-outline-danger">Suppr.</button>

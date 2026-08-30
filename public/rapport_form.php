@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/validation.php';
 requireRole(['collaborateur']);
 
 $u = currentUser();
@@ -21,10 +22,11 @@ $message = '';
 $erreur = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrf();
     $annee = (int) $_POST['annee'];
     $semaine = (int) $_POST['semaine'];
-    $contenu = trim($_POST['contenu'] ?? '');
-    $tempsPasse = ($_POST['temps_passe'] ?? '') !== '' ? (float) $_POST['temps_passe'] : null;
+    $contenu = limiterLongueur($_POST['contenu'] ?? '', 20000);
+    $tempsPasseBrut = trim($_POST['temps_passe'] ?? '');
     $statut = $_POST['action'] === 'soumettre' ? 'soumis' : 'brouillon';
 
     // Rapport existant pour cette semaine (pour conserver le fichier déjà uploadé si aucun nouveau fichier)
@@ -32,10 +34,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmtExistant->execute([$u['id'], $annee, $semaine]);
     $existant = $stmtExistant->fetch();
 
+    // Sécurité : un rapport déjà validé ne doit plus pouvoir être modifié, même via
+    // une requête forgée directement (le formulaire désactivé côté HTML n'est qu'un
+    // confort d'affichage, pas une protection).
+    if ($existant && $existant['statut'] === 'valide') {
+        $erreur = 'Ce rapport a déjà été validé par votre manager et ne peut plus être modifié.';
+    }
+
+    $erreurTemps = erreurNombreDansPlage($tempsPasseBrut, 0, 168, 'Le temps passé');
+    if (!$erreur && $erreurTemps !== null) {
+        $erreur = $erreurTemps;
+    }
+    $tempsPasse = $tempsPasseBrut !== '' ? (float) $tempsPasseBrut : null;
+
     $nomFichierWord = $existant['fichier_word'] ?? null;
 
     // Gestion de l'upload du fichier Word
-    if (!empty($_FILES['fichier_word']['name'])) {
+    if (!$erreur && !empty($_FILES['fichier_word']['name'])) {
         $fichier = $_FILES['fichier_word'];
         $extension = strtolower(pathinfo($fichier['name'], PATHINFO_EXTENSION));
 
@@ -45,6 +60,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $erreur = 'Seuls les fichiers .docx sont acceptés.';
         } elseif ($fichier['size'] > 10 * 1024 * 1024) {
             $erreur = 'Le fichier dépasse la taille maximale autorisée (10 Mo).';
+        } elseif (!class_exists('ZipArchive') || !(function() use ($fichier) {
+            $zip = new ZipArchive();
+            $ouvert = $zip->open($fichier['tmp_name']) === true;
+            if ($ouvert) {
+                $zip->close();
+            }
+            return $ouvert;
+        })()) {
+            // Un fichier .docx est une archive ZIP : si l'ouverture échoue, ce n'est
+            // pas un fichier Word valide (extension trompeuse, fichier corrompu...).
+            $erreur = "Le fichier envoyé n'est pas un document Word (.docx) valide.";
         } else {
             $nouveauNom = 'rapport_' . $u['id'] . '_' . $annee . '_S' . $semaine . '_' . time() . '.docx';
             if (move_uploaded_file($fichier['tmp_name'], DOSSIER_UPLOADS . '/' . $nouveauNom)) {
@@ -138,6 +164,7 @@ require __DIR__ . '/../includes/navbar.php';
     </form>
 
     <form method="post" enctype="multipart/form-data">
+        <?= champCsrf() ?>
         <input type="hidden" name="annee" value="<?= (int)$annee ?>">
         <input type="hidden" name="semaine" value="<?= (int)$semaine ?>">
 

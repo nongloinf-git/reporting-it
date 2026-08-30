@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/journal.php';
+require_once __DIR__ . '/../includes/validation.php';
 requireRole(['admin']);
 
 $admin = currentUser();
@@ -10,20 +11,27 @@ $pdo = getPDO();
 $message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrf();
     $action = $_POST['action'] ?? '';
 
     // Création d'un utilisateur
     if ($action === 'creer') {
-        $nom = trim($_POST['nom'] ?? '');
-        $email = trim($_POST['email'] ?? '');
+        $nom = limiterLongueur($_POST['nom'] ?? '', 100);
+        $email = limiterLongueur($_POST['email'] ?? '', 150);
         $motDePasse = $_POST['mot_de_passe'] ?? '';
-        $role = $_POST['role'] ?? 'collaborateur';
-        $equipe = trim($_POST['equipe'] ?? '');
+        $role = in_array($_POST['role'] ?? '', ['admin', 'manager', 'collaborateur'], true) ? $_POST['role'] : 'collaborateur';
+        $equipe = limiterLongueur($_POST['equipe'] ?? '', 100);
         $managerId = ($_POST['manager_id'] ?? '') !== '' ? (int) $_POST['manager_id'] : null;
         $peutGererReunions = isset($_POST['peut_gerer_reunions']) ? 1 : 0;
 
+        $erreurMdp = erreurForceMotDePasse($motDePasse);
+
         if ($nom === '' || $email === '' || $motDePasse === '') {
             $message = 'Tous les champs obligatoires doivent être remplis.';
+        } elseif (!emailValide($email)) {
+            $message = "Le format de l'email est invalide.";
+        } elseif ($erreurMdp !== null) {
+            $message = $erreurMdp;
         } else {
             try {
                 $stmt = $pdo->prepare(
@@ -120,8 +128,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'reinitialiser_mdp') {
         $id = (int) $_POST['id'];
         $nouveauMdp = $_POST['nouveau_mot_de_passe'] ?? '';
-        if (mb_strlen($nouveauMdp) < 8) {
-            $message = 'Le nouveau mot de passe doit contenir au moins 8 caractères.';
+        $erreurMdp = erreurForceMotDePasse($nouveauMdp);
+        if ($erreurMdp !== null) {
+            $message = $erreurMdp;
         } else {
             $stmt = $pdo->prepare('UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?');
             $stmt->execute([password_hash($nouveauMdp, PASSWORD_DEFAULT), $id]);
@@ -152,6 +161,7 @@ require __DIR__ . '/../includes/navbar.php';
         <div class="card-header">Ajouter un utilisateur</div>
         <div class="card-body">
             <form method="post" class="row g-3">
+                <?= champCsrf() ?>
                 <input type="hidden" name="action" value="creer">
                 <div class="col-md-4">
                     <label class="form-label">Nom</label>
@@ -221,6 +231,7 @@ require __DIR__ . '/../includes/navbar.php';
                 <td><?= e($ut['email']) ?></td>
                 <td>
                     <form method="post" class="d-flex gap-1">
+                        <?= champCsrf() ?>
                         <input type="hidden" name="action" value="modifier_role">
                         <input type="hidden" name="id" value="<?= (int)$ut['id'] ?>">
                         <select name="role" class="form-select form-select-sm">
@@ -242,6 +253,7 @@ require __DIR__ . '/../includes/navbar.php';
                 </td>
                 <td>
                     <form method="post">
+                        <?= champCsrf() ?>
                         <input type="hidden" name="action" value="basculer_permission_reunions">
                         <input type="hidden" name="id" value="<?= (int)$ut['id'] ?>">
                         <button class="btn btn-sm <?= $ut['peut_gerer_reunions'] || $ut['role'] === 'admin' ? 'btn-success' : 'btn-outline-secondary' ?>" <?= $ut['role'] === 'admin' ? 'disabled title="Les admins gèrent toujours les réunions"' : '' ?>>
@@ -252,6 +264,7 @@ require __DIR__ . '/../includes/navbar.php';
                 <td>
                     <div class="d-flex flex-column gap-1" style="min-width: 220px;">
                         <form method="post" onsubmit="return confirm('<?= $ut['actif'] ? 'Désactiver' : 'Réactiver' ?> ce compte ?');">
+                            <?= champCsrf() ?>
                             <input type="hidden" name="action" value="basculer_actif">
                             <input type="hidden" name="id" value="<?= (int)$ut['id'] ?>">
                             <button class="btn btn-sm btn-outline-warning w-100" <?= (int)$ut['id'] === (int)$admin['id'] ? 'disabled' : '' ?>>
@@ -259,12 +272,14 @@ require __DIR__ . '/../includes/navbar.php';
                             </button>
                         </form>
                         <form method="post" class="d-flex gap-1">
+                            <?= champCsrf() ?>
                             <input type="hidden" name="action" value="reinitialiser_mdp">
                             <input type="hidden" name="id" value="<?= (int)$ut['id'] ?>">
                             <input type="password" name="nouveau_mot_de_passe" class="form-control form-control-sm" placeholder="Nouveau mot de passe" minlength="8">
                             <button class="btn btn-sm btn-outline-primary">Réinit.</button>
                         </form>
                         <form method="post" onsubmit="return confirm('Supprimer définitivement cet utilisateur ?');">
+                            <?= champCsrf() ?>
                             <input type="hidden" name="action" value="supprimer">
                             <input type="hidden" name="id" value="<?= (int)$ut['id'] ?>">
                             <button class="btn btn-sm btn-outline-danger w-100" <?= (int)$ut['id'] === (int)$admin['id'] ? 'disabled' : '' ?>>Supprimer</button>

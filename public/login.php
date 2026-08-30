@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/journal.php';
+require_once __DIR__ . '/../includes/validation.php';
 
 if (isLoggedIn() && currentUser() !== null) {
     header('Location: dashboard.php');
@@ -17,28 +18,36 @@ if (isset($_GET['desactive'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrf();
+
     $email = trim($_POST['email'] ?? '');
     $motDePasse = $_POST['mot_de_passe'] ?? '';
 
-    $stmt = getPDO()->prepare('SELECT * FROM utilisateurs WHERE email = ?');
-    $stmt->execute([$email]);
-    $utilisateur = $stmt->fetch();
-
-    if ($utilisateur && password_verify($motDePasse, $utilisateur['mot_de_passe'])) {
-        if ((int) $utilisateur['actif'] !== 1) {
-            $erreur = 'Ce compte a été désactivé. Contactez votre administrateur.';
-            journaliser((int) $utilisateur['id'], 'connexion_echouee', 'Compte désactivé', $email);
-        } else {
-            session_regenerate_id(true);
-            $_SESSION['user_id'] = $utilisateur['id'];
-            $_SESSION['derniere_activite'] = time();
-            journaliser((int) $utilisateur['id'], 'connexion_reussie');
-            header('Location: dashboard.php');
-            exit;
-        }
+    if (tropDeTentativesConnexion($email)) {
+        $erreur = 'Trop de tentatives de connexion pour cet identifiant. Merci de réessayer dans quelques minutes.';
+        journaliser(null, 'connexion_echouee', 'Blocage anti-brute-force (trop de tentatives)', $email);
     } else {
-        $erreur = 'Email ou mot de passe incorrect.';
-        journaliser($utilisateur['id'] ?? null, 'connexion_echouee', 'Mot de passe incorrect ou email inconnu', $email);
+        $stmt = getPDO()->prepare('SELECT * FROM utilisateurs WHERE email = ?');
+        $stmt->execute([$email]);
+        $utilisateur = $stmt->fetch();
+
+        if ($utilisateur && password_verify($motDePasse, $utilisateur['mot_de_passe'])) {
+            if ((int) $utilisateur['actif'] !== 1) {
+                $erreur = 'Ce compte a été désactivé. Contactez votre administrateur.';
+                journaliser((int) $utilisateur['id'], 'connexion_echouee', 'Compte désactivé', $email);
+            } else {
+                session_regenerate_id(true);
+                $_SESSION['user_id'] = $utilisateur['id'];
+                $_SESSION['derniere_activite'] = time();
+                $_SESSION['derniere_regeneration'] = time();
+                journaliser((int) $utilisateur['id'], 'connexion_reussie');
+                header('Location: dashboard.php');
+                exit;
+            }
+        } else {
+            $erreur = 'Email ou mot de passe incorrect.';
+            journaliser($utilisateur['id'] ?? null, 'connexion_echouee', 'Mot de passe incorrect ou email inconnu', $email);
+        }
     }
 }
 $titrePage = 'Connexion';
@@ -54,13 +63,14 @@ require __DIR__ . '/../includes/header.php';
                         <div class="alert alert-danger"><?= e($erreur) ?></div>
                     <?php endif; ?>
                     <form method="post">
+                        <?= champCsrf() ?>
                         <div class="mb-3">
                             <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" required autofocus>
+                            <input type="email" name="email" class="form-control" required autofocus maxlength="150">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Mot de passe</label>
-                            <input type="password" name="mot_de_passe" class="form-control" required>
+                            <input type="password" name="mot_de_passe" class="form-control" required maxlength="200">
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Se connecter</button>
                     </form>

@@ -13,6 +13,7 @@ $semaine = isset($_GET['semaine']) ? (int) $_GET['semaine'] : $sem['semaine'];
 $resultats = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    requireCsrf();
     $resultats = envoyerRappelsRapportsNonSoumis($annee, $semaine);
     // Un manager ne relance que son équipe : filtre après coup si besoin
     if ($u['role'] === 'manager') {
@@ -46,6 +47,7 @@ require __DIR__ . '/../includes/navbar.php';
     </form>
 
     <form method="post">
+        <?= champCsrf() ?>
         <input type="hidden" name="annee" value="<?= (int)$annee ?>">
         <input type="hidden" name="semaine" value="<?= (int)$semaine ?>">
         <button type="submit" class="btn btn-warning" onclick="return confirm('Envoyer un email de rappel à tous les collaborateurs n\'ayant pas soumis leur rapport ?');">
