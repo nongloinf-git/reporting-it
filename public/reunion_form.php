@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/validation.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireReunionPermission();
 
 $u = currentUser();
@@ -52,10 +53,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($reunionId) {
             $stmt = $pdo->prepare('UPDATE reunions SET titre = ?, description = ?, date_reunion = ?, lieu = ? WHERE id = ?');
             $stmt->execute([$titre, $description ?: null, $dateReunion, $lieu ?: null, $reunionId]);
+            journaliser((int) $u['id'], 'modification_reunion', "\"$titre\"");
         } else {
             $stmt = $pdo->prepare('INSERT INTO reunions (titre, description, date_reunion, lieu, organisateur_id) VALUES (?, ?, ?, ?, ?)');
             $stmt->execute([$titre, $description ?: null, $dateReunion, $lieu ?: null, $u['id']]);
             $reunionId = (int) $pdo->lastInsertId();
+            journaliser((int) $u['id'], 'creation_reunion', "\"$titre\"");
         }
 
         // Remplace la liste des participants

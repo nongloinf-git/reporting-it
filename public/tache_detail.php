@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireLogin();
 
 $u = currentUser();
@@ -42,15 +43,21 @@ if (!$gestionnaire && !$estResponsable && !$estCreateur && !$estParticipantReuni
 }
 
 $message = '';
+$erreur = '';
 
 // Mise à jour du statut (gestionnaire ou responsable)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_statut') {
     requireCsrf();
     $nouveauStatut = $_POST['statut'] ?? 'a_faire';
     if (($gestionnaire || $estResponsable) && in_array($nouveauStatut, ['a_faire', 'en_cours', 'termine'], true)) {
-        $pdo->prepare('UPDATE taches_reunion SET statut = ? WHERE id = ?')->execute([$nouveauStatut, $tacheId]);
-        $tache['statut'] = $nouveauStatut;
-        $message = 'Statut mis à jour.';
+        if ($nouveauStatut === 'termine' && !toutesSousTachesTerminees($pdo, $tacheId)) {
+            $erreur = 'Impossible de terminer cette tâche : toutes ses sous-tâches doivent d\'abord être terminées.';
+        } else {
+            $pdo->prepare('UPDATE taches_reunion SET statut = ? WHERE id = ?')->execute([$nouveauStatut, $tacheId]);
+            $tache['statut'] = $nouveauStatut;
+            journaliser((int) $u['id'], 'modification_tache', "Statut de \"" . ($tache['titre'] ?: $tache['description']) . "\" -> " . libelleStatutTache($nouveauStatut));
+            $message = 'Statut mis à jour.';
+        }
     }
 }
 
@@ -58,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_s
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'supprimer') {
     requireCsrf();
     if ($gestionnaire) {
+        journaliser((int) $u['id'], 'suppression_tache', $tache['titre'] ?: $tache['description']);
         $pdo->prepare('DELETE FROM taches_reunion WHERE id = ?')->execute([$tacheId]);
         header('Location: ' . ($tache['parent_tache_id'] ? 'tache_detail.php?id=' . $tache['parent_tache_id'] : 'taches.php'));
         exit;
@@ -69,13 +77,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_s
     requireCsrf();
     $sousTacheId = (int) $_POST['sous_tache_id'];
     $nouveauStatut = $_POST['statut'] ?? 'a_faire';
-    $stmtST = $pdo->prepare('SELECT responsable_id FROM taches_reunion WHERE id = ? AND parent_tache_id = ?');
+    $stmtST = $pdo->prepare('SELECT responsable_id, titre, description FROM taches_reunion WHERE id = ? AND parent_tache_id = ?');
     $stmtST->execute([$sousTacheId, $tacheId]);
     $sousTache = $stmtST->fetch();
     if ($sousTache && ($gestionnaire || (int) $sousTache['responsable_id'] === (int) $u['id'])
         && in_array($nouveauStatut, ['a_faire', 'en_cours', 'termine'], true)) {
-        $pdo->prepare('UPDATE taches_reunion SET statut = ? WHERE id = ?')->execute([$nouveauStatut, $sousTacheId]);
-        $message = 'Statut de la sous-tâche mis à jour.';
+        if ($nouveauStatut === 'termine' && !toutesSousTachesTerminees($pdo, $sousTacheId)) {
+            $erreur = 'Impossible de terminer cette sous-tâche : ses propres sous-tâches doivent d\'abord être terminées.';
+        } else {
+            $pdo->prepare('UPDATE taches_reunion SET statut = ? WHERE id = ?')->execute([$nouveauStatut, $sousTacheId]);
+            journaliser((int) $u['id'], 'modification_tache', "Statut de \"" . ($sousTache['titre'] ?: $sousTache['description']) . "\" -> " . libelleStatutTache($nouveauStatut));
+            $message = 'Statut de la sous-tâche mis à jour.';
+        }
     }
 }
 
@@ -83,7 +96,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_s
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'supprimer_sous_tache') {
     requireCsrf();
     if ($gestionnaire) {
-        $pdo->prepare('DELETE FROM taches_reunion WHERE id = ? AND parent_tache_id = ?')->execute([(int) $_POST['sous_tache_id'], $tacheId]);
+        $sousTacheIdSuppr = (int) $_POST['sous_tache_id'];
+        $stmtNom = $pdo->prepare('SELECT titre, description FROM taches_reunion WHERE id = ?');
+        $stmtNom->execute([$sousTacheIdSuppr]);
+        $nomCible = $stmtNom->fetch();
+        $pdo->prepare('DELETE FROM taches_reunion WHERE id = ? AND parent_tache_id = ?')->execute([$sousTacheIdSuppr, $tacheId]);
+        if ($nomCible) {
+            journaliser((int) $u['id'], 'suppression_tache', $nomCible['titre'] ?: $nomCible['description']);
+        }
         $message = 'Sous-tâche supprimée.';
     }
 }
@@ -96,6 +116,7 @@ $stmtSous = $pdo->prepare(
 );
 $stmtSous->execute([$tacheId]);
 $sousTaches = $stmtSous->fetchAll();
+$nbSousTachesNonTerminees = count(array_filter($sousTaches, fn($st) => $st['statut'] !== 'termine'));
 
 $titrePage = $tache['titre'] ?: 'Détail de la tâche';
 require __DIR__ . '/../includes/header.php';
@@ -131,6 +152,7 @@ require __DIR__ . '/../includes/navbar.php';
     </div>
 
     <?php if ($message): ?><div class="alert alert-info"><?= e($message) ?></div><?php endif; ?>
+    <?php if ($erreur): ?><div class="alert alert-danger"><?= e($erreur) ?></div><?php endif; ?>
 
     <div class="card mb-4">
         <div class="card-body">
@@ -158,6 +180,9 @@ require __DIR__ . '/../includes/navbar.php';
                                 <option value="termine" <?= $tache['statut'] === 'termine' ? 'selected' : '' ?>>Terminée</option>
                             </select>
                         </form>
+                        <?php if ($nbSousTachesNonTerminees > 0 && $tache['statut'] !== 'termine'): ?>
+                            <p class="text-warning small mt-1 mb-0">⚠️ <?= $nbSousTachesNonTerminees ?> sous-tâche(s) encore non terminée(s)</p>
+                        <?php endif; ?>
                     <?php else: ?>
                         <span class="badge bg-<?= classeBadgeStatutTache($tache['statut']) ?>"><?= libelleStatutTache($tache['statut']) ?></span>
                     <?php endif; ?>

@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/validation.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireLogin();
 
 $u = currentUser();
@@ -58,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creer
     } else {
         $stmt = $pdo->prepare('INSERT INTO taches_reunion (reunion_id, description, responsable_id, echeance, createur_id) VALUES (?, ?, ?, ?, ?)');
         $stmt->execute([$reunionId, $description, $responsableId, $echeance, $u['id']]);
+        journaliser((int) $u['id'], 'creation_tache', mb_strimwidth($description, 0, 100, '...') . " (réunion \"{$reunion['titre']}\")");
         $message = 'Tâche ajoutée.';
     }
 }
@@ -68,15 +70,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_s
     $tacheId = (int) $_POST['tache_id'];
     $nouveauStatut = $_POST['statut'] ?? 'a_faire';
 
-    $stmtT = $pdo->prepare('SELECT responsable_id FROM taches_reunion WHERE id = ? AND reunion_id = ?');
+    $stmtT = $pdo->prepare('SELECT responsable_id, titre, description FROM taches_reunion WHERE id = ? AND reunion_id = ?');
     $stmtT->execute([$tacheId, $reunionId]);
     $tache = $stmtT->fetch();
 
     if ($tache && ($gestionnaire || (int) $tache['responsable_id'] === (int) $u['id'])
         && in_array($nouveauStatut, ['a_faire', 'en_cours', 'termine'], true)) {
-        $stmt = $pdo->prepare('UPDATE taches_reunion SET statut = ? WHERE id = ?');
-        $stmt->execute([$nouveauStatut, $tacheId]);
-        $message = 'Statut de la tâche mis à jour.';
+        if ($nouveauStatut === 'termine' && !toutesSousTachesTerminees($pdo, $tacheId)) {
+            $message = 'Impossible de terminer cette tâche : toutes ses sous-tâches doivent d\'abord être terminées.';
+        } else {
+            $stmt = $pdo->prepare('UPDATE taches_reunion SET statut = ? WHERE id = ?');
+            $stmt->execute([$nouveauStatut, $tacheId]);
+            journaliser((int) $u['id'], 'modification_tache', "Statut de \"" . ($tache['titre'] ?: $tache['description']) . "\" -> " . libelleStatutTache($nouveauStatut));
+            $message = 'Statut de la tâche mis à jour.';
+        }
     }
 }
 
@@ -84,11 +91,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'maj_s
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'supprimer_tache') {
     requireCsrf();
     if ($peutCreerTaches) {
+        $tacheIdSuppr = (int) $_POST['tache_id'];
+        $stmtNom = $pdo->prepare('SELECT titre, description FROM taches_reunion WHERE id = ?');
+        $stmtNom->execute([$tacheIdSuppr]);
+        $nomCible = $stmtNom->fetch();
         $stmt = $pdo->prepare('DELETE FROM taches_reunion WHERE id = ? AND reunion_id = ?');
-        $stmt->execute([(int) $_POST['tache_id'], $reunionId]);
+        $stmt->execute([$tacheIdSuppr, $reunionId]);
+        if ($nomCible) {
+            journaliser((int) $u['id'], 'suppression_tache', $nomCible['titre'] ?: $nomCible['description']);
+        }
         $message = 'Tâche supprimée.';
     }
 }
+
 
 $stmtT = $pdo->prepare('SELECT t.*, resp.nom AS responsable_nom, (SELECT COUNT(*) FROM taches_reunion st WHERE st.parent_tache_id = t.id) AS nb_sous_taches FROM taches_reunion t LEFT JOIN utilisateurs resp ON resp.id = t.responsable_id WHERE t.reunion_id = ? AND t.parent_tache_id IS NULL ORDER BY t.statut, t.echeance IS NULL, t.echeance');
 $stmtT->execute([$reunionId]);

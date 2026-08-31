@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/validation.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireRole(['collaborateur']);
 
 $u = currentUser();
@@ -105,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
             }
             $stmt->execute([$u['id'], $annee, $semaine, $contenu ?: null, $nomFichierWord, $tempsPasse, $statut]);
+            journaliser((int) $u['id'], $statut === 'soumis' ? 'soumission_rapport' : 'enregistrement_rapport', "Semaine $semaine/$annee");
             $message = $statut === 'soumis' ? 'Rapport soumis avec succès.' : 'Brouillon enregistré.';
         }
     }

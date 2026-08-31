@@ -3,8 +3,10 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/validation.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireRole(['admin']);
 
+$admin = currentUser();
 $pdo = getPDO();
 
 define('DOSSIER_LOGO', __DIR__ . '/uploads/logo');
@@ -51,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$erreur) {
+        journaliser((int) $admin['id'], 'modification_parametres', "Nom société : \"$nomSociete\"" . (!empty($_FILES['logo']['name']) ? ' + nouveau logo' : ''));
         $message = 'Paramètres enregistrés.';
     }
 }

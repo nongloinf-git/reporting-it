@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/notifications.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireRole(['manager', 'admin']);
 
 $u = currentUser();
@@ -23,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $emailsEquipe = array_column($stmt->fetchAll(), 'email');
         $resultats = array_values(array_filter($resultats, fn($r) => in_array($r['email'], $emailsEquipe, true)));
     }
+    journaliser((int) $u['id'], 'envoi_rappels_email', count($resultats) . " rappel(s) — semaine $semaine/$annee");
 }
 $titrePage = 'Notifications';
 require __DIR__ . '/../includes/header.php';

@@ -99,6 +99,7 @@ La rubrique **Tâches** (accessible à tous) centralise désormais toutes les t�
 - **Sous-tâches** : depuis le détail d'une tâche (qu'elle soit directe ou issue d'une réunion), un gestionnaire peut ajouter des sous-tâches, chacune avec son propre responsable, échéance et statut.
 - **Filtres** : la liste des tâches se filtre par collaborateur, statut (À faire/En cours/Terminée) et origine (issue d'une réunion / tâche directe). Un simple collaborateur (sans la permission de gestion) ne voit et ne peut filtrer que **ses propres tâches**, sans possibilité de voir celles des autres.
 - Comme pour les tâches de réunion, le responsable d'une tâche ou sous-tâche peut faire évoluer son statut sans avoir besoin de la permission de gestion complète ; seul un gestionnaire peut créer, modifier l'organisation ou supprimer.
+- **Règle métier : une tâche ne peut être marquée "Terminée" que si toutes ses sous-tâches directes sont elles-mêmes déjà "Terminée"**. La vérification est faite côté serveur (pas seulement dans l'interface), donc impossible à contourner même via une requête forgée. Un avertissement (⚠️ nombre de sous-tâches restantes) s'affiche avant même de tenter le changement de statut.
 
 ## Module Réunions
 
@@ -218,11 +219,14 @@ Ces dates sont affichées :
 
 ## Historique des modifications (traçabilité et sécurité)
 
-Une table `journal_activite` enregistre automatiquement, avec date/heure et adresse IP :
-- Les connexions réussies et échouées (email/mot de passe incorrect, compte désactivé) ;
-- Les déconnexions (volontaires et automatiques par inactivité) ;
-- Les actions d'administration sensibles : création/suppression d'utilisateur, changement de rôle, activation/désactivation de compte, modification de la permission "Réunions", réinitialisation de mot de passe ;
-- Les validations et renvois de rapports par un manager/admin.
+Une table `journal_activite` enregistre automatiquement, avec date/heure et adresse IP, **toutes les actions qui modifient des données dans l'application** :
+- Les connexions réussies et échouées (email/mot de passe incorrect, compte désactivé), et les déconnexions (volontaires et automatiques par inactivité) ;
+- Les actions d'administration : création/suppression d'utilisateur, changement de rôle, activation/désactivation de compte, modification de la permission "Réunions", réinitialisation de mot de passe, modification des paramètres de la société (logo, nom) ;
+- Les rapports : enregistrement (brouillon ou soumission), validation, renvoi pour révision, ajout de commentaire ;
+- Les réunions : création et modification ;
+- Les tâches (issues d'une réunion ou directes, et leurs sous-tâches) : création, changement de statut, suppression ;
+- Le profil personnel : modification du nom/photo, changement de mot de passe, changement d'apparence (couleur/mode sombre) ;
+- L'envoi de rappels par email.
 
 La page **Historique des modifications** (menu Options, admin uniquement) permet de consulter et filtrer ces entrées par utilisateur et par type d'action (200 entrées les plus récentes affichées).
 

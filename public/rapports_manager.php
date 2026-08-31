@@ -56,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($commentaire !== '') {
         $stmt = $pdo->prepare('INSERT INTO commentaires_validation (rapport_id, manager_id, commentaire) VALUES (?, ?, ?)');
         $stmt->execute([$rapportId, $u['id'], $commentaire]);
+        journaliser((int) $u['id'], 'commentaire_rapport', "Rapport #$rapportId");
     }
     header('Location: rapports_manager.php#rapport-' . $rapportId);
     exit;

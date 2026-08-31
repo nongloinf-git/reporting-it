@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/validation.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireLogin();
 
 $u = currentUser();
@@ -57,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'infos
         if (!$erreurInfos) {
             $stmt = $pdo->prepare('UPDATE utilisateurs SET nom = ?, photo_profil = ? WHERE id = ?');
             $stmt->execute([$nom, $nomPhoto, $u['id']]);
+            journaliser((int) $u['id'], 'modification_profil', "Nom : \"$nom\"" . (!empty($_FILES['photo']['name']) ? ' + nouvelle photo' : ''));
             $messageInfos = 'Informations mises à jour.';
             $u = currentUser(); // valeur mise en cache : on force un rechargement affichage ci-dessous via variables locales
             $u['nom'] = $nom;
@@ -87,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'mot_d
     } else {
         $stmt = $pdo->prepare('UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?');
         $stmt->execute([password_hash($nouveau, PASSWORD_DEFAULT), $u['id']]);
+        journaliser((int) $u['id'], 'changement_mot_de_passe');
         $messageMdp = 'Mot de passe modifié avec succès.';
     }
 }
@@ -100,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'appar
 
     $stmt = $pdo->prepare('UPDATE utilisateurs SET theme_couleur = ?, mode_sombre = ? WHERE id = ?');
     $stmt->execute([$couleur, $modeSombre, $u['id']]);
+    journaliser((int) $u['id'], 'modification_apparence', "Couleur : $couleur, mode sombre : " . ($modeSombre ? 'oui' : 'non'));
 
     // Redirection nécessaire pour que le nouveau thème s'applique dès cette page
     // (currentUser() est mis en cache pour la durée de la requête en cours).

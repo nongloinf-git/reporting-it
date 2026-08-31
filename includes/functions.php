@@ -264,6 +264,19 @@ function jsonPourScript($valeur): string
 }
 
 /**
+ * Vérifie qu'une tâche peut être marquée "Terminée" : c'est le cas si elle n'a
+ * aucune sous-tâche, ou si toutes ses sous-tâches directes sont déjà au statut
+ * "Terminée". Utilisé pour empêcher de clôturer une tâche tant que son travail
+ * délégué n'est pas fini.
+ */
+function toutesSousTachesTerminees(PDO $pdo, int $tacheId): bool
+{
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM taches_reunion WHERE parent_tache_id = ? AND statut <> 'termine'");
+    $stmt->execute([$tacheId]);
+    return (int) $stmt->fetchColumn() === 0;
+}
+
+/**
  * Calcule la liste des semaines ISO (annee, semaine) sur les $nombreSemaines
  * dernières semaines, en partant de la semaine courante (incluse).
  * Retourne un tableau de clés "annee-semaine" (ex: "2026-35").

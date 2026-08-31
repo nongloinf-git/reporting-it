@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/validation.php';
+require_once __DIR__ . '/../includes/journal.php';
 requireTachePermission();
 
 $u = currentUser();
@@ -41,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->execute([$parentIdPost, $u['id'], $titre ?: null, $description ?: ($titre ?: 'Tâche'), $responsableId, $echeance]);
             $nouvelId = (int) $pdo->lastInsertId();
+            journaliser((int) $u['id'], 'creation_tache', ($titre ?: $description) . ($parentIdPost ? ' (sous-tâche)' : ' (tâche directe)'));
 
             header('Location: ' . ($parentIdPost ? 'tache_detail.php?id=' . $parentIdPost : 'tache_detail.php?id=' . $nouvelId));
             exit;
