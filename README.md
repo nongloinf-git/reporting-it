@@ -88,7 +88,7 @@ Ces préférences sont propres à chaque compte, stockées en base (`theme_coule
 
 Pour désencombrer la barre de navigation, les pages secondaires sont regroupées dans un menu déroulant **Options** :
 - **Manager et admin** y trouvent "Rappels email".
-- **Admin uniquement** y trouve en plus "Utilisateurs", "Paramètres" et "Journal d'activité".
+- **Admin uniquement** y trouve en plus "Utilisateurs", "Paramètres" et "Historique des modifications".
 
 Les restrictions d'accès à ces pages restent bien sûr appliquées côté serveur, indépendamment de ce qui est affiché dans le menu.
 
@@ -170,13 +170,25 @@ La page **Historique** affiche les rapports de l'équipe sur plusieurs semaines 
 - Résultats regroupés par collaborateur, avec statut, temps passé et aperçu du contenu (texte, ou aperçu Word visuel via mammoth.js).
 - **Exporter CSV / Exporter PDF** directement depuis cette page, en respectant les mêmes filtres (nombre de semaines, collaborateur) que ceux affichés à l'écran.
 
-## Graphiques de charge de travail (Chart.js)
+## Graphiques et statistiques (Chart.js)
 
 - **Tableau de bord du collaborateur** : courbe de son temps déclaré sur ses 10 derniers rapports.
 - **Tableau de bord du manager/admin** : histogramme comparant le temps déclaré par chaque membre de l'équipe pour la semaine en cours.
 - **Page Historique** : courbes multi-collaborateurs sur la période sélectionnée (voir ci-dessus).
+- **Page Statistiques** (menu Options, manager/admin) : vue d'ensemble avec 4 graphiques —
+  - Taux de soumission des rapports de la semaine en cours (soumis vs non soumis) ;
+  - Répartition des tâches de l'équipe par statut (à faire / en cours / terminée) ;
+  - Nombre de réunions organisées par mois sur les 12 derniers mois ;
+  - Temps moyen déclaré par collaborateur sur les 8 dernières semaines.
+  - Un manager ne voit que les données de sa propre équipe ; l'admin voit l'ensemble de l'entreprise.
 
 Ces graphiques utilisent [Chart.js](https://www.chartjs.org/) chargé depuis un CDN (aucune installation locale requise).
+
+## Design et interface responsive
+
+- **Design modernisé** : police [Inter](https://fonts.google.com) (Google Fonts), ombres douces sur les cartes, coins arrondis cohérents, transitions discrètes sur les boutons et liens, en-têtes de tableau stylisés. L'ensemble reste basé sur Bootstrap 5.3 (pas de mélange avec Tailwind, qui entrerait en conflit avec les classes Bootstrap déjà utilisées partout dans l'application).
+- **Responsive** : menu de navigation avec bouton "hamburger" sur petit écran, tous les tableaux de l'application défilent horizontalement sur mobile plutôt que de déborder (`table-responsive`), et la grille du calendrier reste consultable en défilement horizontal sur les très petits écrans.
+- La personnalisation couleur/mode sombre (voir plus haut, section "Personnalisation de l'interface") s'applique par-dessus ce design de base.
 
 ## Vue calendrier des réunions
 
@@ -190,8 +202,9 @@ En plus de la vue liste, la page **Réunions** propose une **vue calendrier** (b
 - Notification email automatique à l'assignation d'une tâche
 - Rappel email automatique avant l'échéance d'une tâche
 - Export CSV/PDF des tâches (réunion ou directes)
-- Export CSV/PDF du journal d'activité
+- Export CSV/PDF de l'historique des modifications
 - Filtres avancés sur la vue calendrier (par collaborateur, par équipe)
+- Statistiques sur une période personnalisable (actuellement fixées : semaine en cours / 12 mois / 8 semaines)
 
 ## Dates de suivi des rapports (envoi et validation)
 
@@ -203,7 +216,7 @@ Ces dates sont affichées :
 - Sur **Mon rapport de la semaine** (vue du collaborateur) : "Envoyé le JJ/MM/AAAA à HH:mm" ou "Pas encore envoyé", et "Validé le JJ/MM/AAAA à HH:mm" ou "En attente de validation".
 - Sur **Rapports de l'équipe** (vue manager/admin) : mêmes informations pour chaque rapport affiché.
 
-## Journal d'activité (traçabilité et sécurité)
+## Historique des modifications (traçabilité et sécurité)
 
 Une table `journal_activite` enregistre automatiquement, avec date/heure et adresse IP :
 - Les connexions réussies et échouées (email/mot de passe incorrect, compte désactivé) ;
@@ -211,7 +224,7 @@ Une table `journal_activite` enregistre automatiquement, avec date/heure et adre
 - Les actions d'administration sensibles : création/suppression d'utilisateur, changement de rôle, activation/désactivation de compte, modification de la permission "Réunions", réinitialisation de mot de passe ;
 - Les validations et renvois de rapports par un manager/admin.
 
-La page **Journal d'activité** (admin uniquement, dans le menu) permet de consulter et filtrer ces entrées par utilisateur et par type d'action (200 entrées les plus récentes affichées).
+La page **Historique des modifications** (menu Options, admin uniquement) permet de consulter et filtrer ces entrées par utilisateur et par type d'action (200 entrées les plus récentes affichées).
 
 ⚠️ Cette journalisation ne doit jamais empêcher l'application de fonctionner : si l'écriture du journal échoue pour une raison quelconque (ex: migration pas encore appliquée), l'erreur est silencieusement ignorée (juste tracée dans le fichier de log PHP/Apache) sans bloquer l'action de l'utilisateur.
 

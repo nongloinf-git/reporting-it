@@ -31,6 +31,7 @@ require __DIR__ . '/../includes/navbar.php';
         <p class="text-muted">Aucune réunion pour le moment.</p>
     <?php endif; ?>
 
+    <div class="table-responsive">
     <table class="table table-bordered bg-white">
         <thead class="table-light">
             <tr>
@@ -55,6 +56,7 @@ require __DIR__ . '/../includes/navbar.php';
         <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 </div>
 </body>
 </html>

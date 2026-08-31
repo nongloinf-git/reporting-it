@@ -84,7 +84,8 @@ require __DIR__ . '/../includes/navbar.php';
         <a class="btn btn-sm btn-link" href="reunions_calendrier.php">Revenir au mois en cours</a>
     </div>
 
-    <table class="table table-bordered bg-white" style="table-layout: fixed;">
+    <div class="table-responsive">
+    <table class="table table-bordered bg-white" style="table-layout: fixed; min-width: 700px;">
         <thead class="table-light">
             <tr>
                 <th>Lun</th><th>Mar</th><th>Mer</th><th>Jeu</th><th>Ven</th><th>Sam</th><th>Dim</th>
@@ -114,6 +115,7 @@ require __DIR__ . '/../includes/navbar.php';
         <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 </div>
 </body>
 </html>

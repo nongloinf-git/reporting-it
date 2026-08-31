@@ -103,6 +103,7 @@ require __DIR__ . '/../includes/navbar.php';
     <?php if (!$taches): ?>
         <p class="text-muted">Aucune tâche ne correspond à ces filtres.</p>
     <?php else: ?>
+    <div class="table-responsive">
         <table class="table table-bordered bg-white">
             <thead class="table-light">
                 <tr>
@@ -139,6 +140,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php endforeach; ?>
             </tbody>
         </table>
+    </div>
     <?php endif; ?>
 </div>
 </body>

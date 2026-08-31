@@ -176,6 +176,7 @@ require __DIR__ . '/../includes/navbar.php';
     <?php if (!$sousTaches): ?>
         <p class="text-muted">Aucune sous-tâche.</p>
     <?php else: ?>
+    <div class="table-responsive">
         <table class="table table-bordered bg-white">
             <thead class="table-light">
                 <tr><th>Sous-tâche</th><th>Responsable</th><th>Échéance</th><th>Statut</th><th></th></tr>
@@ -216,6 +217,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php endforeach; ?>
             </tbody>
         </table>
+    </div>
     <?php endif; ?>
 
     <a href="<?= $tache['parent_tache_id'] ? 'tache_detail.php?id=' . (int)$tache['parent_tache_id'] : 'taches.php' ?>" class="btn btn-outline-secondary">Retour</a>

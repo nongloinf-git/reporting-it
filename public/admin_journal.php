@@ -38,13 +38,13 @@ $entrees = $stmt->fetchAll();
 
 $utilisateurs = $pdo->query('SELECT id, nom FROM utilisateurs ORDER BY nom')->fetchAll();
 $actionsDistinctes = $pdo->query('SELECT DISTINCT action FROM journal_activite ORDER BY action')->fetchAll(PDO::FETCH_COLUMN);
-$titrePage = "Journal d'activité";
+$titrePage = "Historique des modifications";
 require __DIR__ . '/../includes/header.php';
 require __DIR__ . '/../includes/navbar.php';
 ?>
 <div class="container">
-    <h3>Journal d'activité</h3>
-    <p class="text-muted">Connexions et actions sensibles (les <?= $limite ?> entrées les plus récentes, selon les filtres ci-dessous).</p>
+    <h3>Historique des modifications</h3>
+    <p class="text-muted">Journal des connexions et actions sensibles (les <?= $limite ?> entrées les plus récentes, selon les filtres ci-dessous).</p>
 
     <form method="get" class="row g-2 mb-4">
         <div class="col-auto">
@@ -76,6 +76,7 @@ require __DIR__ . '/../includes/navbar.php';
     <?php if (!$entrees): ?>
         <p class="text-muted">Aucune entrée trouvée.</p>
     <?php else: ?>
+    <div class="table-responsive">
         <table class="table table-bordered table-sm bg-white">
             <thead class="table-light">
                 <tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Détails</th><th>Adresse IP</th></tr>
@@ -99,6 +100,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php endforeach; ?>
             </tbody>
         </table>
+    </div>
     <?php endif; ?>
 </div>
 </body>

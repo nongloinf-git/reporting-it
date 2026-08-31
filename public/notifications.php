@@ -60,6 +60,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php if (!$resultats): ?>
                 <div class="alert alert-success">Tout le monde a déjà soumis son rapport — aucun rappel nécessaire.</div>
             <?php else: ?>
+    <div class="table-responsive">
                 <table class="table table-bordered bg-white">
                     <thead class="table-light">
                         <tr><th>Collaborateur</th><th>Email</th><th>Statut de l'envoi</th></tr>
@@ -80,6 +81,7 @@ require __DIR__ . '/../includes/navbar.php';
                     <?php endforeach; ?>
                     </tbody>
                 </table>
+    </div>
             <?php endif; ?>
         </div>
     <?php endif; ?>

@@ -64,6 +64,7 @@ require __DIR__ . '/../includes/navbar.php';
     <p class="text-muted">Semaine ISO <?= $sem['semaine'] ?> - <?= $sem['annee'] ?></p>
 
     <?php if ($u['role'] === 'collaborateur'): ?>
+        <div class="table-responsive">
         <table class="table table-bordered bg-white">
             <thead class="table-light">
                 <tr><th>Semaine</th><th>Statut</th><th>Temps passé</th><th>Aperçu</th></tr>
@@ -82,7 +83,9 @@ require __DIR__ . '/../includes/navbar.php';
             <?php endif; ?>
             </tbody>
         </table>
+        </div>
     <?php else: ?>
+        <div class="table-responsive">
         <table class="table table-bordered bg-white">
             <thead class="table-light">
                 <tr><th>Collaborateur</th><th>Équipe</th><th>Statut semaine en cours</th><th>Action</th></tr>
@@ -110,6 +113,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
     <?php endif; ?>
 
     <h5 class="mt-5"><?= $u['role'] === 'collaborateur' ? 'Mon temps déclaré par semaine' : 'Charge de travail de l\'équipe (semaine en cours)' ?></h5>
@@ -148,6 +152,7 @@ require __DIR__ . '/../includes/navbar.php';
     <?php if (!$mesTaches): ?>
         <p class="text-muted">Aucune tâche ne vous est assignée.</p>
     <?php else: ?>
+        <div class="table-responsive">
         <table class="table table-bordered bg-white">
             <thead class="table-light">
                 <tr><th>Tâche</th><th>Origine</th><th>Échéance</th><th>Statut</th></tr>
@@ -163,6 +168,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
     <?php endif; ?>
 </div>
 </body>

@@ -170,6 +170,7 @@ require __DIR__ . '/../includes/navbar.php';
     <?php if (!$taches): ?>
         <p class="text-muted">Aucune tâche pour cette réunion.</p>
     <?php else: ?>
+    <div class="table-responsive">
         <table class="table table-bordered bg-white">
             <thead class="table-light">
                 <tr><th>Tâche</th><th>Responsable</th><th>Échéance</th><th>Statut</th><th></th><th></th></tr>
@@ -215,6 +216,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php endforeach; ?>
             </tbody>
         </table>
+    </div>
     <?php endif; ?>
 
     <a href="reunions.php" class="btn btn-outline-secondary">Retour à la liste</a>

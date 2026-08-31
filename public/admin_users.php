@@ -209,6 +209,7 @@ require __DIR__ . '/../includes/navbar.php';
         </div>
     </div>
 
+    <div class="table-responsive">
     <table class="table table-bordered bg-white align-middle">
         <thead class="table-light">
             <tr>
@@ -290,6 +291,7 @@ require __DIR__ . '/../includes/navbar.php';
         <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 </div>
 </body>
 </html>

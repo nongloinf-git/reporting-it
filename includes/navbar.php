@@ -32,12 +32,13 @@ $estGestionnaire = in_array($u['role'], ['manager', 'admin'], true);
                     <div class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Options</a>
                         <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="statistiques.php">📊 Statistiques</a></li>
                             <li><a class="dropdown-item" href="notifications.php">Rappels email</a></li>
                             <?php if ($u['role'] === 'admin'): ?>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="admin_users.php">Utilisateurs</a></li>
                                 <li><a class="dropdown-item" href="admin_parametres.php">Paramètres</a></li>
-                                <li><a class="dropdown-item" href="admin_journal.php">Journal d'activité</a></li>
+                                <li><a class="dropdown-item" href="admin_journal.php">Historique des modifications</a></li>
                             <?php endif; ?>
                         </ul>
                     </div>

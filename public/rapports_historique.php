@@ -173,6 +173,7 @@ require __DIR__ . '/../includes/navbar.php';
 
     <?php $compteur = 0; foreach ($parCollaborateur as $nom => $rapportsCollaborateur): ?>
         <h5 class="mt-4"><?= e($nom) ?></h5>
+    <div class="table-responsive">
         <table class="table table-bordered bg-white">
             <thead class="table-light">
                 <tr>
@@ -208,6 +209,7 @@ require __DIR__ . '/../includes/navbar.php';
             <?php endforeach; ?>
             </tbody>
         </table>
+    </div>
     <?php endforeach; ?>
 </div>
 </body>
