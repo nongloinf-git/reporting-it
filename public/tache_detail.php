@@ -202,9 +202,9 @@ require __DIR__ . '/../includes/navbar.php';
         <p class="text-muted">Aucune sous-tâche.</p>
     <?php else: ?>
     <div class="table-responsive">
-        <table class="table table-bordered bg-white">
+        <table class="table table-bordered bg-white table-triable">
             <thead class="table-light">
-                <tr><th>Sous-tâche</th><th>Responsable</th><th>Échéance</th><th>Statut</th><th></th></tr>
+                <tr><th>Sous-tâche</th><th>Responsable</th><th data-type="date_fr">Échéance</th><th data-no-tri>Statut</th><th data-no-tri></th></tr>
             </thead>
             <tbody>
             <?php foreach ($sousTaches as $st): ?>

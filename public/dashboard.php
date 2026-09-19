@@ -65,14 +65,14 @@ require __DIR__ . '/../includes/navbar.php';
 
     <?php if ($u['role'] === 'collaborateur'): ?>
         <div class="table-responsive">
-        <table class="table table-bordered bg-white">
+        <table class="table table-bordered bg-white table-triable">
             <thead class="table-light">
-                <tr><th>Semaine</th><th>Statut</th><th>Temps passé</th><th>Aperçu</th></tr>
+                <tr><th>Semaine</th><th>Statut</th><th data-type="nombre">Temps passé</th><th data-no-tri>Aperçu</th></tr>
             </thead>
             <tbody>
             <?php foreach ($rapports as $r): ?>
                 <tr>
-                    <td>S<?= (int)$r['semaine_numero'] ?> - <?= (int)$r['annee'] ?></td>
+                    <td data-tri="<?= (int)$r['annee'] * 100 + (int)$r['semaine_numero'] ?>">S<?= (int)$r['semaine_numero'] ?> - <?= (int)$r['annee'] ?></td>
                     <td><span class="badge bg-<?= classeBadgeStatut($r['statut']) ?>"><?= libelleStatut($r['statut']) ?></span></td>
                     <td><?= $r['temps_passe'] !== null ? e((string)$r['temps_passe']) . ' h' : '-' ?></td>
                     <td><?= !empty($r['contenu']) ? e(mb_strimwidth($r['contenu'], 0, 60, '...')) : (!empty($r['fichier_word']) ? '📄 Fichier Word' : '-') ?></td>
@@ -86,9 +86,9 @@ require __DIR__ . '/../includes/navbar.php';
         </div>
     <?php else: ?>
         <div class="table-responsive">
-        <table class="table table-bordered bg-white">
+        <table class="table table-bordered bg-white table-triable">
             <thead class="table-light">
-                <tr><th>Collaborateur</th><th>Équipe</th><th>Statut semaine en cours</th><th>Action</th></tr>
+                <tr><th>Collaborateur</th><th>Équipe</th><th>Statut semaine en cours</th><th data-no-tri>Action</th></tr>
             </thead>
             <tbody>
             <?php foreach ($membres as $m): ?>
@@ -153,9 +153,9 @@ require __DIR__ . '/../includes/navbar.php';
         <p class="text-muted">Aucune tâche ne vous est assignée.</p>
     <?php else: ?>
         <div class="table-responsive">
-        <table class="table table-bordered bg-white">
+        <table class="table table-bordered bg-white table-triable">
             <thead class="table-light">
-                <tr><th>Tâche</th><th>Origine</th><th>Échéance</th><th>Statut</th></tr>
+                <tr><th>Tâche</th><th>Origine</th><th data-type="date_fr">Échéance</th><th>Statut</th></tr>
             </thead>
             <tbody>
             <?php foreach ($mesTaches as $t): ?>

@@ -74,6 +74,7 @@ require __DIR__ . '/../includes/header.php';
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Se connecter</button>
                     </form>
+                    <p class="text-muted small mt-3 mb-0">Compte par défaut : admin@local.test / Admin123!</p>
                 </div>
             </div>
         </div>

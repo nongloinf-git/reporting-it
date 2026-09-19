@@ -11,30 +11,7 @@ $utilisateurId = isset($_GET['utilisateur_id']) && $_GET['utilisateur_id'] !== '
 $actionFiltre = $_GET['action'] ?? '';
 $limite = 200;
 
-$conditions = [];
-$parametres = [];
-
-if ($utilisateurId !== null) {
-    $conditions[] = 'j.utilisateur_id = ?';
-    $parametres[] = $utilisateurId;
-}
-if ($actionFiltre !== '') {
-    $conditions[] = 'j.action = ?';
-    $parametres[] = $actionFiltre;
-}
-
-$ou = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
-
-$stmt = $pdo->prepare(
-    "SELECT j.*, u.nom AS utilisateur_nom
-     FROM journal_activite j
-     LEFT JOIN utilisateurs u ON u.id = j.utilisateur_id
-     $ou
-     ORDER BY j.date_action DESC
-     LIMIT $limite"
-);
-$stmt->execute($parametres);
-$entrees = $stmt->fetchAll();
+$entrees = recupererJournalFiltre($pdo, $utilisateurId, $actionFiltre, $limite);
 
 $utilisateurs = $pdo->query('SELECT id, nom FROM utilisateurs ORDER BY nom')->fetchAll();
 $actionsDistinctes = $pdo->query('SELECT DISTINCT action FROM journal_activite ORDER BY action')->fetchAll(PDO::FETCH_COLUMN);
@@ -71,15 +48,22 @@ require __DIR__ . '/../includes/navbar.php';
         <div class="col-auto align-self-end">
             <a href="admin_journal.php" class="btn btn-outline-secondary">Réinitialiser</a>
         </div>
+        <?php $qsJournal = http_build_query(['utilisateur_id' => $utilisateurId ?? '', 'action' => $actionFiltre]); ?>
+        <div class="col-auto align-self-end">
+            <a class="btn btn-outline-success" href="export_journal_csv.php?<?= $qsJournal ?>">Exporter CSV</a>
+        </div>
+        <div class="col-auto align-self-end">
+            <a class="btn btn-outline-danger" href="export_journal_pdf.php?<?= $qsJournal ?>" target="_blank">Exporter PDF</a>
+        </div>
     </form>
 
     <?php if (!$entrees): ?>
         <p class="text-muted">Aucune entrée trouvée.</p>
     <?php else: ?>
     <div class="table-responsive">
-        <table class="table table-bordered table-sm bg-white">
+        <table class="table table-bordered table-sm bg-white table-triable">
             <thead class="table-light">
-                <tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Détails</th><th>Adresse IP</th></tr>
+                <tr><th data-type="date_fr">Date</th><th>Utilisateur</th><th>Action</th><th>Détails</th><th>Adresse IP</th></tr>
             </thead>
             <tbody>
             <?php foreach ($entrees as $entree): ?>

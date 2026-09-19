@@ -8,6 +8,12 @@ $u = currentUser();
 $pdo = getPDO();
 $sem = semaineCourante();
 
+// --- Périodes personnalisables (avec valeurs par défaut sensées) ---
+$anneeSoumission = isset($_GET['annee']) ? (int) $_GET['annee'] : $sem['annee'];
+$semaineSoumission = isset($_GET['semaine']) ? max(1, min(53, (int) $_GET['semaine'])) : $sem['semaine'];
+$nbMoisReunions = isset($_GET['nb_mois']) ? max(1, min(36, (int) $_GET['nb_mois'])) : 12;
+$nbSemainesMoyenne = isset($_GET['nb_semaines']) ? max(1, min(52, (int) $_GET['nb_semaines'])) : 8;
+
 // --- Périmètre : l'équipe du manager, ou tout le monde pour l'admin ---
 if ($u['role'] === 'manager') {
     $stmt = $pdo->prepare("SELECT id FROM utilisateurs WHERE manager_id = ?");
@@ -18,14 +24,14 @@ if ($u['role'] === 'manager') {
 $idsEquipe = array_column($stmt->fetchAll(), 'id');
 $placeholders = $idsEquipe ? implode(',', array_fill(0, count($idsEquipe), '?')) : 'NULL';
 
-// --- 1. Taux de soumission de la semaine en cours (soumis+validé vs pas soumis) ---
+// --- 1. Taux de soumission de la semaine choisie (soumis+validé vs pas soumis) ---
 $soumis = 0;
 $nonSoumis = 0;
 if ($idsEquipe) {
     $stmt = $pdo->prepare(
         "SELECT COUNT(*) FROM rapports WHERE utilisateur_id IN ($placeholders) AND annee = ? AND semaine_numero = ? AND statut IN ('soumis','valide')"
     );
-    $stmt->execute([...$idsEquipe, $sem['annee'], $sem['semaine']]);
+    $stmt->execute([...$idsEquipe, $anneeSoumission, $semaineSoumission]);
     $soumis = (int) $stmt->fetchColumn();
     $nonSoumis = max(0, count($idsEquipe) - $soumis);
 }
@@ -42,21 +48,23 @@ if ($idsEquipe) {
     }
 }
 
-// --- 3. Réunions organisées par mois (12 derniers mois) ---
+// --- 3. Réunions organisées par mois (nombre de mois personnalisable) ---
 $moisLabels = [];
 $moisCles = [];
 $curseur = new DateTime('first day of this month');
-for ($i = 11; $i >= 0; $i--) {
+for ($i = $nbMoisReunions - 1; $i >= 0; $i--) {
     $d = (clone $curseur)->modify("-$i months");
     $moisCles[] = $d->format('Y-m');
     $moisLabels[] = ucfirst($d->format('M Y'));
 }
 $reunionsParMois = array_fill_keys($moisCles, 0);
+$dateDebutReunions = (clone $curseur)->modify('-' . ($nbMoisReunions - 1) . ' months')->format('Y-m-01');
 if ($u['role'] === 'admin') {
-    $stmt = $pdo->query("SELECT DATE_FORMAT(date_reunion, '%Y-%m') AS mois, COUNT(*) AS nb FROM reunions GROUP BY mois");
+    $stmt = $pdo->prepare("SELECT DATE_FORMAT(date_reunion, '%Y-%m') AS mois, COUNT(*) AS nb FROM reunions WHERE date_reunion >= ? GROUP BY mois");
+    $stmt->execute([$dateDebutReunions]);
 } else {
-    $stmt = $pdo->prepare("SELECT DATE_FORMAT(date_reunion, '%Y-%m') AS mois, COUNT(*) AS nb FROM reunions WHERE organisateur_id = ? GROUP BY mois");
-    $stmt->execute([$u['id']]);
+    $stmt = $pdo->prepare("SELECT DATE_FORMAT(date_reunion, '%Y-%m') AS mois, COUNT(*) AS nb FROM reunions WHERE organisateur_id = ? AND date_reunion >= ? GROUP BY mois");
+    $stmt->execute([$u['id'], $dateDebutReunions]);
 }
 foreach ($stmt->fetchAll() as $ligne) {
     if (isset($reunionsParMois[$ligne['mois']])) {
@@ -64,17 +72,17 @@ foreach ($stmt->fetchAll() as $ligne) {
     }
 }
 
-// --- 4. Temps moyen déclaré par collaborateur (8 dernières semaines soumises) ---
+// --- 4. Temps moyen déclaré par collaborateur (nombre de semaines personnalisable) ---
 $moyenneParCollaborateur = [];
 if ($idsEquipe) {
     $stmt = $pdo->prepare(
         "SELECT ut.nom, AVG(r.temps_passe) AS moyenne
          FROM rapports r JOIN utilisateurs ut ON ut.id = r.utilisateur_id
          WHERE r.utilisateur_id IN ($placeholders) AND r.temps_passe IS NOT NULL
-         AND r.date_envoi > (NOW() - INTERVAL 8 WEEK)
+         AND r.date_envoi > (NOW() - INTERVAL ? WEEK)
          GROUP BY ut.id, ut.nom ORDER BY ut.nom"
     );
-    $stmt->execute($idsEquipe);
+    $stmt->execute([...$idsEquipe, $nbSemainesMoyenne]);
     $moyenneParCollaborateur = $stmt->fetchAll();
 }
 
@@ -87,10 +95,47 @@ require __DIR__ . '/../includes/navbar.php';
     <h3>Statistiques</h3>
     <p class="text-muted">Vue d'ensemble de <?= $u['role'] === 'admin' ? "l'ensemble des collaborateurs" : 'votre équipe' ?>.</p>
 
+    <div class="card mb-4">
+        <div class="card-header">Périodes des graphiques</div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-auto">
+                    <label class="form-label small mb-0">Semaine (taux de soumission)</label>
+                    <div class="d-flex gap-1">
+                        <input type="number" name="semaine" min="1" max="53" value="<?= $semaineSoumission ?>" class="form-control form-control-sm" style="width:80px;" title="Numéro de semaine">
+                        <input type="number" name="annee" value="<?= $anneeSoumission ?>" class="form-control form-control-sm" style="width:90px;" title="Année">
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label small mb-0">Nombre de mois (réunions)</label>
+                    <select name="nb_mois" class="form-select form-select-sm">
+                        <?php foreach ([3, 6, 12, 24, 36] as $opt): ?>
+                            <option value="<?= $opt ?>" <?= $nbMoisReunions === $opt ? 'selected' : '' ?>><?= $opt ?> mois</option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label small mb-0">Nombre de semaines (temps moyen)</label>
+                    <select name="nb_semaines" class="form-select form-select-sm">
+                        <?php foreach ([4, 8, 12, 26, 52] as $opt): ?>
+                            <option value="<?= $opt ?>" <?= $nbSemainesMoyenne === $opt ? 'selected' : '' ?>><?= $opt ?> semaines</option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-auto align-self-end">
+                    <button class="btn btn-secondary btn-sm">Appliquer</button>
+                </div>
+                <div class="col-auto align-self-end">
+                    <a href="statistiques.php" class="btn btn-outline-secondary btn-sm">Réinitialiser</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="row g-4 mb-4">
         <div class="col-md-6">
             <div class="card h-100">
-                <div class="card-header">Taux de soumission — semaine en cours</div>
+                <div class="card-header">Taux de soumission — semaine <?= $semaineSoumission ?>/<?= $anneeSoumission ?></div>
                 <div class="card-body">
                     <canvas id="graphiqueSoumission" height="200"></canvas>
                 </div>
@@ -109,7 +154,7 @@ require __DIR__ . '/../includes/navbar.php';
     <div class="row g-4 mb-4">
         <div class="col-md-7">
             <div class="card h-100">
-                <div class="card-header">Réunions organisées par mois (12 derniers mois)</div>
+                <div class="card-header">Réunions organisées par mois (<?= $nbMoisReunions ?> derniers mois)</div>
                 <div class="card-body">
                     <canvas id="graphiqueReunions" height="180"></canvas>
                 </div>
@@ -117,7 +162,7 @@ require __DIR__ . '/../includes/navbar.php';
         </div>
         <div class="col-md-5">
             <div class="card h-100">
-                <div class="card-header">Temps moyen déclaré (8 dernières semaines)</div>
+                <div class="card-header">Temps moyen déclaré (<?= $nbSemainesMoyenne ?> dernières semaines)</div>
                 <div class="card-body">
                     <?php if (!$moyenneParCollaborateur): ?>
                         <p class="text-muted mb-0">Pas encore assez de données.</p>

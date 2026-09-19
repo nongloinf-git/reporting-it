@@ -174,20 +174,20 @@ require __DIR__ . '/../includes/navbar.php';
     <?php $compteur = 0; foreach ($parCollaborateur as $nom => $rapportsCollaborateur): ?>
         <h5 class="mt-4"><?= e($nom) ?></h5>
     <div class="table-responsive">
-        <table class="table table-bordered bg-white">
+        <table class="table table-bordered bg-white table-triable">
             <thead class="table-light">
                 <tr>
                     <th>Semaine</th>
                     <th>Statut</th>
-                    <th>Temps passé</th>
+                    <th data-type="nombre">Temps passé</th>
                     <th>Type</th>
-                    <th>Aperçu</th>
+                    <th data-no-tri>Aperçu</th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($rapportsCollaborateur as $r): $compteur++; $cibleId = 'apercu-hist-' . $compteur; ?>
                 <tr>
-                    <td>S<?= (int)$r['semaine_numero'] ?> - <?= (int)$r['annee'] ?></td>
+                    <td data-tri="<?= (int)$r['annee'] * 100 + (int)$r['semaine_numero'] ?>">S<?= (int)$r['semaine_numero'] ?> - <?= (int)$r['annee'] ?></td>
                     <td><span class="badge bg-<?= classeBadgeStatut($r['statut']) ?>"><?= libelleStatut($r['statut']) ?></span></td>
                     <td><?= $r['temps_passe'] !== null ? e((string)$r['temps_passe']) . ' h' : '-' ?></td>
                     <td><?= !empty($r['fichier_word']) ? 'Word' : 'Texte' ?></td>

@@ -277,6 +277,46 @@ function toutesSousTachesTerminees(PDO $pdo, int $tacheId): bool
 }
 
 /**
+ * Récupère les tâches de premier niveau (parent_tache_id IS NULL) selon les
+ * filtres demandés. Utilisé par la page Tâches et par les exports CSV/PDF pour
+ * garantir que l'export reflète exactement ce qui est affiché à l'écran.
+ */
+function recupererTachesFiltrees(PDO $pdo, ?int $collaborateurId, string $statutFiltre, string $origineFiltre): array
+{
+    $conditions = ['t.parent_tache_id IS NULL'];
+    $parametres = [];
+
+    if ($collaborateurId !== null) {
+        $conditions[] = 't.responsable_id = ?';
+        $parametres[] = $collaborateurId;
+    }
+    if (in_array($statutFiltre, ['a_faire', 'en_cours', 'termine'], true)) {
+        $conditions[] = 't.statut = ?';
+        $parametres[] = $statutFiltre;
+    }
+    if ($origineFiltre === 'reunion') {
+        $conditions[] = 't.reunion_id IS NOT NULL';
+    } elseif ($origineFiltre === 'directe') {
+        $conditions[] = 't.reunion_id IS NULL';
+    }
+
+    $ou = 'WHERE ' . implode(' AND ', $conditions);
+
+    $stmt = $pdo->prepare(
+        "SELECT t.*, resp.nom AS responsable_nom, createur.nom AS createur_nom, r.titre AS reunion_titre,
+                (SELECT COUNT(*) FROM taches_reunion st WHERE st.parent_tache_id = t.id) AS nb_sous_taches
+         FROM taches_reunion t
+         LEFT JOIN utilisateurs resp ON resp.id = t.responsable_id
+         LEFT JOIN utilisateurs createur ON createur.id = t.createur_id
+         LEFT JOIN reunions r ON r.id = t.reunion_id
+         $ou
+         ORDER BY (t.statut = 'termine'), t.echeance IS NULL, t.echeance"
+    );
+    $stmt->execute($parametres);
+    return $stmt->fetchAll();
+}
+
+/**
  * Calcule la liste des semaines ISO (annee, semaine) sur les $nombreSemaines
  * dernières semaines, en partant de la semaine courante (incluse).
  * Retourne un tableau de clés "annee-semaine" (ex: "2026-35").

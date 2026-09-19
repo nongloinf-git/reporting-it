@@ -32,15 +32,15 @@ require __DIR__ . '/../includes/navbar.php';
     <?php endif; ?>
 
     <div class="table-responsive">
-    <table class="table table-bordered bg-white">
+    <table class="table table-bordered bg-white table-triable">
         <thead class="table-light">
             <tr>
                 <th>Titre</th>
-                <th>Date</th>
+                <th data-type="date_fr">Date</th>
                 <th>Lieu</th>
                 <th>Organisateur</th>
-                <th>Tâches</th>
-                <th></th>
+                <th data-type="nombre">Tâches</th>
+                <th data-no-tri></th>
             </tr>
         </thead>
         <tbody>

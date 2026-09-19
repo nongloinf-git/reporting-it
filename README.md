@@ -100,6 +100,7 @@ La rubrique **Tâches** (accessible à tous) centralise désormais toutes les t�
 - **Filtres** : la liste des tâches se filtre par collaborateur, statut (À faire/En cours/Terminée) et origine (issue d'une réunion / tâche directe). Un simple collaborateur (sans la permission de gestion) ne voit et ne peut filtrer que **ses propres tâches**, sans possibilité de voir celles des autres.
 - Comme pour les tâches de réunion, le responsable d'une tâche ou sous-tâche peut faire évoluer son statut sans avoir besoin de la permission de gestion complète ; seul un gestionnaire peut créer, modifier l'organisation ou supprimer.
 - **Règle métier : une tâche ne peut être marquée "Terminée" que si toutes ses sous-tâches directes sont elles-mêmes déjà "Terminée"**. La vérification est faite côté serveur (pas seulement dans l'interface), donc impossible à contourner même via une requête forgée. Un avertissement (⚠️ nombre de sous-tâches restantes) s'affiche avant même de tenter le changement de statut.
+- **Exporter CSV / Exporter PDF** directement depuis la page Tâches, en respectant les filtres actifs (collaborateur, statut, origine).
 
 ## Module Réunions
 
@@ -176,11 +177,11 @@ La page **Historique** affiche les rapports de l'équipe sur plusieurs semaines 
 - **Tableau de bord du collaborateur** : courbe de son temps déclaré sur ses 10 derniers rapports.
 - **Tableau de bord du manager/admin** : histogramme comparant le temps déclaré par chaque membre de l'équipe pour la semaine en cours.
 - **Page Historique** : courbes multi-collaborateurs sur la période sélectionnée (voir ci-dessus).
-- **Page Statistiques** (menu Options, manager/admin) : vue d'ensemble avec 4 graphiques —
-  - Taux de soumission des rapports de la semaine en cours (soumis vs non soumis) ;
+- **Page Statistiques** (menu Options, manager/admin) : vue d'ensemble avec 4 graphiques, **sur des périodes personnalisables** via un formulaire en haut de page —
+  - Taux de soumission des rapports pour une semaine choisie (par défaut : semaine en cours) ;
   - Répartition des tâches de l'équipe par statut (à faire / en cours / terminée) ;
-  - Nombre de réunions organisées par mois sur les 12 derniers mois ;
-  - Temps moyen déclaré par collaborateur sur les 8 dernières semaines.
+  - Nombre de réunions organisées par mois, sur un nombre de mois choisi (3, 6, 12, 24 ou 36 — par défaut 12) ;
+  - Temps moyen déclaré par collaborateur, sur un nombre de semaines choisi (4, 8, 12, 26 ou 52 — par défaut 8).
   - Un manager ne voit que les données de sa propre équipe ; l'admin voit l'ensemble de l'entreprise.
 
 Ces graphiques utilisent [Chart.js](https://www.chartjs.org/) chargé depuis un CDN (aucune installation locale requise).
@@ -197,15 +198,12 @@ En plus de la vue liste, la page **Réunions** propose une **vue calendrier** (b
 - Grille mensuelle démarrant le lundi, avec navigation "Mois précédent / Mois suivant" et retour rapide au mois en cours.
 - Chaque réunion apparaît sous forme de badge coloré sur son jour, avec l'heure et le titre ; un clic ouvre le détail de la réunion.
 - Respecte les mêmes règles de visibilité que la vue liste (un simple participant ne voit que les réunions auxquelles il est convié).
+- **Filtres avancés** (manager/admin) : filtrer par **collaborateur** (ne montre que les réunions où ce collaborateur est organisateur ou participant) ou par **équipe** (basé sur le champ "équipe" des utilisateurs — ne montre que les réunions impliquant au moins une personne de cette équipe). Les filtres actifs sont conservés lors de la navigation entre les mois.
 
 ## Prochaines pistes d'évolution possibles
 
 - Notification email automatique à l'assignation d'une tâche
 - Rappel email automatique avant l'échéance d'une tâche
-- Export CSV/PDF des tâches (réunion ou directes)
-- Export CSV/PDF de l'historique des modifications
-- Filtres avancés sur la vue calendrier (par collaborateur, par équipe)
-- Statistiques sur une période personnalisable (actuellement fixées : semaine en cours / 12 mois / 8 semaines)
 
 ## Dates de suivi des rapports (envoi et validation)
 
@@ -228,7 +226,11 @@ Une table `journal_activite` enregistre automatiquement, avec date/heure et adre
 - Le profil personnel : modification du nom/photo, changement de mot de passe, changement d'apparence (couleur/mode sombre) ;
 - L'envoi de rappels par email.
 
-La page **Historique des modifications** (menu Options, admin uniquement) permet de consulter et filtrer ces entrées par utilisateur et par type d'action (200 entrées les plus récentes affichées).
+La page **Historique des modifications** (menu Options, admin uniquement) permet de consulter et filtrer ces entrées par utilisateur et par type d'action (200 entrées les plus récentes affichées à l'écran). Les boutons **Exporter CSV / Exporter PDF** exportent, eux, jusqu'à 2000 entrées correspondant aux filtres actifs.
+
+## Tri des colonnes
+
+La plupart des tableaux de l'application (Tâches, Réunions, Rapports — historique, Utilisateurs, Historique des modifications, sous-tâches...) sont **triables en cliquant sur l'en-tête d'une colonne** : un premier clic trie par ordre croissant, un second par ordre décroissant (indicateur ↑/↓ affiché). Le tri détecte automatiquement si la colonne contient du texte, un nombre ou une date au format JJ/MM/AAAA, et fonctionne entièrement côté navigateur (aucun rechargement de page). Les colonnes d'actions (boutons) ou contenant un menu déroulant de statut modifiable ne sont pas triables.
 
 ⚠️ Cette journalisation ne doit jamais empêcher l'application de fonctionner : si l'écriture du journal échoue pour une raison quelconque (ex: migration pas encore appliquée), l'erreur est silencieusement ignorée (juste tracée dans le fichier de log PHP/Apache) sans bloquer l'action de l'utilisateur.
 

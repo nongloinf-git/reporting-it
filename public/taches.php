@@ -16,36 +16,7 @@ if (!$gestionnaire) {
 $statutFiltre = $_GET['statut'] ?? '';
 $origineFiltre = $_GET['origine'] ?? ''; // '', 'reunion', 'directe'
 
-$conditions = ['t.parent_tache_id IS NULL']; // liste principale : tâches de premier niveau seulement
-$parametres = [];
-
-if ($collaborateurId !== null) {
-    $conditions[] = 't.responsable_id = ?';
-    $parametres[] = $collaborateurId;
-}
-if (in_array($statutFiltre, ['a_faire', 'en_cours', 'termine'], true)) {
-    $conditions[] = 't.statut = ?';
-    $parametres[] = $statutFiltre;
-}
-if ($origineFiltre === 'reunion') {
-    $conditions[] = 't.reunion_id IS NOT NULL';
-} elseif ($origineFiltre === 'directe') {
-    $conditions[] = 't.reunion_id IS NULL';
-}
-
-$ou = 'WHERE ' . implode(' AND ', $conditions);
-
-$stmt = $pdo->prepare(
-    "SELECT t.*, resp.nom AS responsable_nom, r.titre AS reunion_titre,
-            (SELECT COUNT(*) FROM taches_reunion st WHERE st.parent_tache_id = t.id) AS nb_sous_taches
-     FROM taches_reunion t
-     LEFT JOIN utilisateurs resp ON resp.id = t.responsable_id
-     LEFT JOIN reunions r ON r.id = t.reunion_id
-     $ou
-     ORDER BY (t.statut = 'termine'), t.echeance IS NULL, t.echeance"
-);
-$stmt->execute($parametres);
-$taches = $stmt->fetchAll();
+$taches = recupererTachesFiltrees($pdo, $collaborateurId, $statutFiltre, $origineFiltre);
 
 $collaborateursDisponibles = $gestionnaire
     ? $pdo->query("SELECT id, nom FROM utilisateurs WHERE actif = 1 ORDER BY nom")->fetchAll()
@@ -98,21 +69,28 @@ require __DIR__ . '/../includes/navbar.php';
         <div class="col-auto align-self-end">
             <a href="taches.php" class="btn btn-outline-secondary">Réinitialiser</a>
         </div>
+        <?php $qs = http_build_query(['collaborateur_id' => $collaborateurId ?? '', 'statut' => $statutFiltre, 'origine' => $origineFiltre]); ?>
+        <div class="col-auto align-self-end">
+            <a class="btn btn-outline-success" href="export_taches_csv.php?<?= $qs ?>">Exporter CSV</a>
+        </div>
+        <div class="col-auto align-self-end">
+            <a class="btn btn-outline-danger" href="export_taches_pdf.php?<?= $qs ?>" target="_blank">Exporter PDF</a>
+        </div>
     </form>
 
     <?php if (!$taches): ?>
         <p class="text-muted">Aucune tâche ne correspond à ces filtres.</p>
     <?php else: ?>
     <div class="table-responsive">
-        <table class="table table-bordered bg-white">
+        <table class="table table-bordered bg-white table-triable">
             <thead class="table-light">
                 <tr>
                     <th>Tâche</th>
                     <?php if ($gestionnaire && $collaborateurId === null): ?><th>Responsable</th><?php endif; ?>
                     <th>Origine</th>
-                    <th>Échéance</th>
+                    <th data-type="date_fr">Échéance</th>
                     <th>Statut</th>
-                    <th></th>
+                    <th data-no-tri></th>
                 </tr>
             </thead>
             <tbody>

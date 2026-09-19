@@ -22,12 +22,18 @@ $debutGrille = (clone $premierJourMois)->modify('-' . ($jourSemaine1er - 1) . ' 
 $jourSemaineDernier = (int) $dernierJourMois->format('N');
 $finGrille = (clone $dernierJourMois)->modify('+' . (7 - $jourSemaineDernier) . ' days');
 
+// Filtres avancés (réservés aux gestionnaires — un simple participant a déjà une vue restreinte à ses propres réunions)
+$collaborateurFiltre = $gestionnaire && ($_GET['collaborateur_id'] ?? '') !== '' ? (int) $_GET['collaborateur_id'] : null;
+$equipeFiltre = $gestionnaire ? trim($_GET['equipe'] ?? '') : '';
+
 // Réunions visibles sur toute la plage affichée (y compris les jours "hors mois" en bordure de grille)
 $reunionsPeriode = reunionsVisibles(
     $pdo,
     $u,
     $debutGrille->format('Y-m-d 00:00:00'),
-    $finGrille->format('Y-m-d 23:59:59')
+    $finGrille->format('Y-m-d 23:59:59'),
+    $collaborateurFiltre,
+    $equipeFiltre !== '' ? $equipeFiltre : null
 );
 
 $reunionsParJour = [];
@@ -52,6 +58,21 @@ $moisPrecedent = (clone $premierJourMois)->modify('-1 month');
 $moisSuivant = (clone $premierJourMois)->modify('+1 month');
 $nomsMois = [1 => 'Janvier', 2 => 'Février', 3 => 'Mars', 4 => 'Avril', 5 => 'Mai', 6 => 'Juin', 7 => 'Juillet', 8 => 'Août', 9 => 'Septembre', 10 => 'Octobre', 11 => 'Novembre', 12 => 'Décembre'];
 $aujourdhui = (new DateTime())->format('Y-m-d');
+
+// Paramètres de filtre à conserver lors de la navigation mois précédent/suivant
+$suffixeFiltres = '';
+if ($collaborateurFiltre !== null) {
+    $suffixeFiltres .= '&collaborateur_id=' . $collaborateurFiltre;
+}
+if ($equipeFiltre !== '') {
+    $suffixeFiltres .= '&equipe=' . rawurlencode($equipeFiltre);
+}
+
+if ($gestionnaire) {
+    $collaborateursDisponibles = $pdo->query("SELECT id, nom FROM utilisateurs WHERE actif = 1 ORDER BY nom")->fetchAll();
+    $equipesDisponibles = $pdo->query("SELECT DISTINCT equipe FROM utilisateurs WHERE equipe IS NOT NULL AND equipe <> '' ORDER BY equipe")->fetchAll(PDO::FETCH_COLUMN);
+}
+
 $titrePage = 'Calendrier des réunions';
 require __DIR__ . '/../includes/header.php';
 require __DIR__ . '/../includes/navbar.php';
@@ -76,13 +97,46 @@ require __DIR__ . '/../includes/navbar.php';
     </div>
 
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <a class="btn btn-outline-secondary btn-sm" href="?mois=<?= (int)$moisPrecedent->format('n') ?>&annee=<?= (int)$moisPrecedent->format('Y') ?>">← Mois précédent</a>
+        <a class="btn btn-outline-secondary btn-sm" href="?mois=<?= (int)$moisPrecedent->format('n') ?>&annee=<?= (int)$moisPrecedent->format('Y') ?><?= $suffixeFiltres ?>">← Mois précédent</a>
         <h5 class="mb-0"><?= $nomsMois[$mois] ?> <?= $annee ?></h5>
-        <a class="btn btn-outline-secondary btn-sm" href="?mois=<?= (int)$moisSuivant->format('n') ?>&annee=<?= (int)$moisSuivant->format('Y') ?>">Mois suivant →</a>
+        <a class="btn btn-outline-secondary btn-sm" href="?mois=<?= (int)$moisSuivant->format('n') ?>&annee=<?= (int)$moisSuivant->format('Y') ?><?= $suffixeFiltres ?>">Mois suivant →</a>
     </div>
     <div class="text-center mb-3">
-        <a class="btn btn-sm btn-link" href="reunions_calendrier.php">Revenir au mois en cours</a>
+        <a class="btn btn-sm btn-link" href="reunions_calendrier.php<?= $suffixeFiltres ? '?' . ltrim($suffixeFiltres, '&') : '' ?>">Revenir au mois en cours</a>
     </div>
+
+    <?php if ($gestionnaire): ?>
+        <form method="get" class="row g-2 mb-3">
+            <input type="hidden" name="mois" value="<?= $mois ?>">
+            <input type="hidden" name="annee" value="<?= $annee ?>">
+            <div class="col-auto">
+                <label class="form-label">Collaborateur</label>
+                <select name="collaborateur_id" class="form-select">
+                    <option value="">Tous</option>
+                    <?php foreach ($collaborateursDisponibles as $c): ?>
+                        <option value="<?= (int)$c['id'] ?>" <?= $collaborateurFiltre === (int)$c['id'] ? 'selected' : '' ?>><?= e($c['nom']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label">Équipe</label>
+                <select name="equipe" class="form-select">
+                    <option value="">Toutes</option>
+                    <?php foreach ($equipesDisponibles as $eq): ?>
+                        <option value="<?= e($eq) ?>" <?= $equipeFiltre === $eq ? 'selected' : '' ?>><?= e($eq) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-auto align-self-end">
+                <button class="btn btn-secondary">Filtrer</button>
+            </div>
+            <?php if ($collaborateurFiltre !== null || $equipeFiltre !== ''): ?>
+                <div class="col-auto align-self-end">
+                    <a href="?mois=<?= $mois ?>&annee=<?= $annee ?>" class="btn btn-outline-secondary">Réinitialiser les filtres</a>
+                </div>
+            <?php endif; ?>
+        </form>
+    <?php endif; ?>
 
     <div class="table-responsive">
     <table class="table table-bordered bg-white" style="table-layout: fixed; min-width: 700px;">

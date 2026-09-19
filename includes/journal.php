@@ -24,6 +24,39 @@ function journaliser(?int $utilisateurId, string $action, ?string $details = nul
 }
 
 /**
+ * Récupère les entrées du journal d'activité selon les filtres demandés.
+ * Utilisé par la page Historique des modifications et par ses exports CSV/PDF.
+ */
+function recupererJournalFiltre(PDO $pdo, ?int $utilisateurId, string $actionFiltre, int $limite = 200): array
+{
+    $conditions = [];
+    $parametres = [];
+
+    if ($utilisateurId !== null) {
+        $conditions[] = 'j.utilisateur_id = ?';
+        $parametres[] = $utilisateurId;
+    }
+    if ($actionFiltre !== '') {
+        $conditions[] = 'j.action = ?';
+        $parametres[] = $actionFiltre;
+    }
+
+    $ou = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+    $limite = max(1, min(2000, $limite));
+
+    $stmt = $pdo->prepare(
+        "SELECT j.*, u.nom AS utilisateur_nom
+         FROM journal_activite j
+         LEFT JOIN utilisateurs u ON u.id = j.utilisateur_id
+         $ou
+         ORDER BY j.date_action DESC
+         LIMIT $limite"
+    );
+    $stmt->execute($parametres);
+    return $stmt->fetchAll();
+}
+
+/**
  * Libellés lisibles pour les codes d'action stockés en base.
  */
 function libelleActionJournal(string $action): string

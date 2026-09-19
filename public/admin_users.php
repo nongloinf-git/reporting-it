@@ -210,10 +210,10 @@ require __DIR__ . '/../includes/navbar.php';
     </div>
 
     <div class="table-responsive">
-    <table class="table table-bordered bg-white align-middle">
+    <table class="table table-bordered bg-white align-middle table-triable">
         <thead class="table-light">
             <tr>
-                <th></th>
+                <th data-no-tri></th>
                 <th>Nom</th>
                 <th>Email</th>
                 <th>Rôle</th>
@@ -221,7 +221,7 @@ require __DIR__ . '/../includes/navbar.php';
                 <th>Manager</th>
                 <th>Statut</th>
                 <th>Réunions</th>
-                <th>Actions</th>
+                <th data-no-tri>Actions</th>
             </tr>
         </thead>
         <tbody>
