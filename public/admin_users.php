@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $motDePasse = $_POST['mot_de_passe'] ?? '';
         $role = in_array($_POST['role'] ?? '', ['admin', 'manager', 'collaborateur'], true) ? $_POST['role'] : 'collaborateur';
         $equipe = limiterLongueur($_POST['equipe'] ?? '', 100);
+        $fonction = limiterLongueur($_POST['fonction'] ?? '', 150);
         $managerId = ($_POST['manager_id'] ?? '') !== '' ? (int) $_POST['manager_id'] : null;
         $peutGererReunions = isset($_POST['peut_gerer_reunions']) ? 1 : 0;
 
@@ -35,9 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 $stmt = $pdo->prepare(
-                    'INSERT INTO utilisateurs (nom, email, mot_de_passe, role, equipe, manager_id, peut_gerer_reunions) VALUES (?, ?, ?, ?, ?, ?, ?)'
+                    'INSERT INTO utilisateurs (nom, email, mot_de_passe, role, equipe, fonction, manager_id, peut_gerer_reunions) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
                 );
-                $stmt->execute([$nom, $email, password_hash($motDePasse, PASSWORD_DEFAULT), $role, $equipe ?: null, $managerId, $peutGererReunions]);
+                $stmt->execute([$nom, $email, password_hash($motDePasse, PASSWORD_DEFAULT), $role, $equipe ?: null, $fonction ?: null, $managerId, $peutGererReunions]);
                 journaliser((int) $admin['id'], 'creation_utilisateur', "Création de \"$nom\" ($email, rôle $role)");
                 $message = 'Utilisateur créé avec succès.';
             } catch (PDOException $e) {
@@ -46,6 +47,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     : 'Erreur lors de la création : ' . $e->getMessage();
             }
         }
+    }
+
+    // Modifier la fonction (utilisée pour pré-remplir le rapport hebdomadaire structuré)
+    if ($action === 'modifier_fonction') {
+        $id = (int) $_POST['id'];
+        $fonction = limiterLongueur($_POST['fonction'] ?? '', 150);
+        $stmt = $pdo->prepare('UPDATE utilisateurs SET fonction = ? WHERE id = ?');
+        $stmt->execute([$fonction ?: null, $id]);
+        journaliser((int) $admin['id'], 'modification_fonction', "Fonction mise à jour : \"$fonction\"");
+        $message = 'Fonction mise à jour.';
     }
 
     // Suppression d'un utilisateur
@@ -188,6 +199,10 @@ require __DIR__ . '/../includes/navbar.php';
                     <input type="text" name="equipe" class="form-control">
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label">Fonction</label>
+                    <input type="text" name="fonction" class="form-control" placeholder="Ex : Assistant IT / Support Technique">
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Manager rattaché</label>
                     <select name="manager_id" class="form-select">
                         <option value="">Aucun</option>
@@ -218,6 +233,7 @@ require __DIR__ . '/../includes/navbar.php';
                 <th>Email</th>
                 <th>Rôle</th>
                 <th>Équipe</th>
+                <th>Fonction</th>
                 <th>Manager</th>
                 <th>Statut</th>
                 <th>Réunions</th>
@@ -244,6 +260,15 @@ require __DIR__ . '/../includes/navbar.php';
                     </form>
                 </td>
                 <td><?= e($ut['equipe'] ?? '-') ?></td>
+                <td>
+                    <form method="post" class="d-flex gap-1">
+                        <?= champCsrf() ?>
+                        <input type="hidden" name="action" value="modifier_fonction">
+                        <input type="hidden" name="id" value="<?= (int)$ut['id'] ?>">
+                        <input type="text" name="fonction" value="<?= e($ut['fonction'] ?? '') ?>" class="form-control form-control-sm" placeholder="Non renseignée" style="min-width:160px;">
+                        <button class="btn btn-sm btn-outline-secondary">✓</button>
+                    </form>
+                </td>
                 <td><?= e($ut['manager_nom'] ?? '-') ?></td>
                 <td>
                     <?php if ((int)$ut['actif'] === 1): ?>

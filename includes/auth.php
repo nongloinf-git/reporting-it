@@ -46,7 +46,7 @@ function currentUser(): ?array
         require_once __DIR__ . '/../config/database.php';
 
         $stmt = getPDO()->prepare(
-            'SELECT id, nom, email, role, equipe, photo_profil, actif, peut_gerer_reunions, theme_couleur, mode_sombre
+            'SELECT id, nom, email, role, equipe, fonction, photo_profil, actif, peut_gerer_reunions, theme_couleur, mode_sombre
              FROM utilisateurs WHERE id = ?'
         );
         $stmt->execute([$_SESSION['user_id']]);

@@ -72,6 +72,7 @@ function libelleActionJournal(string $action): string
         'activation_compte' => 'Activation de compte',
         'desactivation_compte' => 'Désactivation de compte',
         'modification_permission_reunions' => 'Modification permission réunions',
+        'modification_fonction' => 'Modification de fonction',
         'reinitialisation_mot_de_passe' => 'Réinitialisation mot de passe (admin)',
         'validation_rapport' => 'Validation de rapport',
         'renvoi_rapport' => 'Renvoi de rapport pour révision',
@@ -88,6 +89,7 @@ function libelleActionJournal(string $action): string
         'modification_apparence' => "Modification de l'apparence",
         'modification_parametres' => 'Modification des paramètres de la société',
         'envoi_rappels_email' => 'Envoi de rappels par email',
+        'generation_synthese' => 'Génération de rapport de synthèse',
         default => ucfirst(str_replace('_', ' ', $action)),
     };
 }

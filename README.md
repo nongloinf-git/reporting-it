@@ -11,6 +11,7 @@
      - `database/migration_3.sql` (photo de profil, désactivation de compte, permission réunions, logo société, module réunions)
      - `database/migration_4.sql` (dates d'envoi/validation des rapports, journal d'activité)
      - `database/migration_5.sql` (personnalisation d'interface, tâches directes et sous-tâches)
+     - `database/migration_6.sql` (fonction du collaborateur, rapport hebdomadaire structuré)
 4. Vérifiez les identifiants dans `config/database.php` si votre MySQL n'utilise pas `root` sans mot de passe.
 5. Ouvrez votre navigateur sur : **http://localhost/reporting-it/public/**
 
@@ -123,6 +124,26 @@ Nouvelle rubrique **Réunions**, accessible à tous mais avec des droits différ
 - Une fois validé par le manager, le rapport n'est plus modifiable.
 - Le tableau de bord du manager/admin affiche en temps réel qui a soumis (ou non) son rapport pour la semaine en cours.
 
+## Formulaire de rapport structuré (modèle AGROCAM) et génération Word/PDF
+
+La page **Mon rapport de la semaine** utilise un formulaire structuré (inspiré du modèle AGROCAM fourni) plutôt qu'un simple champ de texte libre :
+
+- **En-tête** : dates de début/fin calculées automatiquement à partir de la semaine ISO choisie (non modifiables). Le **nom complet** et la **fonction** sont pré-remplis automatiquement depuis la fiche du collaborateur connecté et ne sont **pas modifiables** depuis cette page — la fonction se renseigne exclusivement dans **Utilisateurs** (admin), à la création ou en modification (édition en ligne dans le tableau). Le **site de rattachement** reste librement modifiable à chaque rapport.
+- **Activités réalisées** : blocs répétables (titre + détails), ajout/suppression dynamique, comme dans le modèle fourni.
+- **Difficultés rencontrées**, **Actions prévues pour la semaine suivante**, **Conclusion** : trois zones de texte dédiées.
+- Le champ **Temps passé** et la possibilité de joindre un fichier `.docx` existant restent disponibles comme alternative.
+- Deux boutons **Télécharger en Word** / **Télécharger en PDF** génèrent, entièrement côté navigateur, un document mis en forme à partir des valeurs actuellement saisies dans le formulaire (même non enregistrées) : le **logo de la société** (celui configuré dans **Paramètres**, jamais affiché dans le formulaire d'édition lui-même) y est intégré automatiquement, encodé en base64 pour rester visible même hors ligne une fois le fichier téléchargé.
+- En interne, un résumé texte lisible du rapport continue d'être stocké (colonne `contenu`) pour rester compatible avec les autres vues de l'application (tableau de bord, historique, exports CSV/PDF, graphiques) qui n'ont pas eu besoin d'être modifiées.
+
+## Rapport de synthèse hebdomadaire (manager/admin)
+
+La page **Rapport de synthèse** (menu Options) permet à un manager ou à un admin de compiler en **un seul document Word ou PDF** les rapports **validés** d'une semaine choisie :
+
+- Filtre par année/semaine (comme les autres pages de rapports).
+- La liste des rapports validés de l'équipe s'affiche avec une case à cocher par collaborateur (toutes cochées par défaut) — un compteur "X/Y sélectionné(s)" et des boutons "Tout cocher"/"Tout décocher" permettent d'ajuster rapidement combien de rapports inclure.
+- Les boutons **Télécharger en Word** / **Télécharger en PDF** compilent uniquement les rapports actuellement cochés, chacun sous sa propre section (nom, fonction, activités, difficultés, actions, conclusion), précédés d'un en-tête commun avec le logo de la société et le nombre de rapports inclus sur le total disponible.
+- Un manager ne voit que les rapports validés de sa propre équipe ; l'admin voit ceux de toute l'entreprise.
+
 ## Export des rapports
 
 Sur la page **Rapports de l'équipe** (manager/admin), deux boutons permettent d'exporter les rapports de la semaine filtrée :
@@ -132,7 +153,7 @@ Sur la page **Rapports de l'équipe** (manager/admin), deux boutons permettent d
 
 ## Rapports au format Word (.docx)
 
-- Sur la page **Mon rapport de la semaine**, le collaborateur peut soit taper son texte, soit joindre un fichier `.docx` (10 Mo max), soit les deux.
+- Sur la page **Mon rapport de la semaine**, le collaborateur peut, en alternative au formulaire structuré, joindre directement un fichier `.docx` déjà rédigé (10 Mo max).
 - Les fichiers sont stockés dans `public/uploads/rapports_word/`.
 - Le manager/admin voit, sur la page **Rapports de l'équipe**, un **aperçu visuel avec mise en forme conservée** (gras, titres, listes...), généré côté navigateur via [mammoth.js](https://github.com/mwilliamson/mammoth.js) (chargé depuis un CDN, aucune installation requise). Un aperçu texte brut (extrait côté PHP, sans dépendance) s'affiche automatiquement en repli si l'aperçu visuel échoue (pas d'accès internet pour charger la librairie, fichier corrompu...). Un lien **Télécharger / Ouvrir** reste disponible pour consulter le fichier original.
 - Le manager/admin peut ensuite :
